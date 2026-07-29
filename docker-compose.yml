@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    restart: always
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.unique-discount-app.rule=Host(`ahmad.project.terzettoo.com`)"
+      - "traefik.http.routers.unique-discount-app.entrypoints=websecure"
+      - "traefik.http.routers.unique-discount-app.tls=true"
+      - "traefik.http.services.unique-discount-app.loadbalancer.server.port=3000"
+    environment:
+      - SHOPIFY_API_KEY=${SHOPIFY_API_KEY}
+      - SHOPIFY_API_SECRET=${SHOPIFY_API_SECRET}
+      - SCOPES=${SCOPES}
+      - HOST=${HOST}
+      - PORT=3000
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+    networks:
+      - default
+      - mysql-xpsz_default
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis_data:/data
+    networks:
+      - default
+
+volumes:
+  redis_data:
+
+networks:
+  default:
+  mysql-xpsz_default:
+    external: true
