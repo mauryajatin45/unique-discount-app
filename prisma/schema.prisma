@@ -55,11 +55,14 @@ model Log {
 }
 
 model AppUser {
-  id        Int      @id @default(autoincrement())
-  shop      String
-  email     String
-  name      String?
-  role      String   @default("Staff") // Admin, Staff
-  createdAt DateTime @default(now())
+  id               Int      @id @default(autoincrement())
+  shop             String
+  email            String
+  password         String
+  name             String?
+  canViewDashboard Boolean  @default(true)
+  canViewLogs      Boolean  @default(true)
+  canViewSettings  Boolean  @default(false)
+  createdAt        DateTime @default(now())
 }
 

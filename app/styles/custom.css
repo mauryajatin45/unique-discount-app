@@ -46,22 +46,74 @@ body {
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius-md);
-  padding: 16px;
+  padding: 24px;
   display: flex;
   flex-direction: column;
+  transition: all 0.2s ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--app-shadow);
+  border-color: #d1d5db;
+}
+
+.metric-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.metric-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #f3f4f6;
+  color: var(--app-primary);
 }
 
 .metric-title {
   font-size: 14px;
   color: var(--app-text-muted);
-  font-weight: 500;
-  margin-bottom: 8px;
+  font-weight: 600;
+  margin: 0;
 }
 
 .metric-value {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
   color: var(--app-text);
+  line-height: 1;
+}
+
+.hero-banner {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+  border-radius: var(--app-radius-lg);
+  padding: 32px;
+  color: white;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--app-shadow);
+}
+
+.hero-content h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.hero-content p {
+  font-size: 16px;
+  opacity: 0.9;
+  margin: 0;
 }
 
 /* Custom Table Styles */
