@@ -109,9 +109,9 @@ function LoginScreen() {
           <p style={{ color: 'var(--app-text-muted)', margin: 0, fontSize: '14px' }}>Please enter your staff credentials to access the dashboard.</p>
         </div>
 
-        {fetcher.data?.error && (
+        {(fetcher.data as any)?.error && (
           <div style={{ background: '#fee2e2', color: '#b91c1c', padding: '12px', borderRadius: '6px', marginBottom: '24px', fontSize: '14px', textAlign: 'center' }}>
-            {fetcher.data.error}
+            {(fetcher.data as any).error}
           </div>
         )}
 

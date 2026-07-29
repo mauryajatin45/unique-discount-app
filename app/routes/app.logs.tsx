@@ -1,4 +1,5 @@
-import { LoaderFunctionArgs, json } from "@remix-run/node";
+import type { LoaderFunctionArgs} from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 import { requireAppUser } from "../auth.server";
@@ -6,7 +7,11 @@ import prisma from "../db.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  await requireAppUser(request, "canViewLogs");
+  const user = await requireAppUser(request, "canViewLogs");
+
+  if (!user) {
+    return json({ logs: [] });
+  }
 
   const shop = session.shop;
 

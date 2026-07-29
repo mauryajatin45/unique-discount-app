@@ -1,6 +1,5 @@
-import { createCookieSessionStorage, redirect } from "@remix-run/node";
+import { createCookieSessionStorage } from "@remix-run/node";
 import prisma from "./db.server";
-import bcrypt from "bcryptjs";
 
 const sessionSecret = process.env.SESSION_SECRET || "fallback_default_secret_for_dev";
 
@@ -44,12 +43,11 @@ export async function requireAppUser(request: Request, requiredPermission?: 'can
   const user = await getAppUser(request);
   
   if (!user) {
-    throw redirect("/app"); // Redirect to the main app layout which handles the login screen
+    return null;
   }
 
   if (requiredPermission && !user[requiredPermission]) {
-    // If they don't have permission for this specific page, redirect to the app root
-    throw redirect("/app");
+    return null;
   }
 
   return user;

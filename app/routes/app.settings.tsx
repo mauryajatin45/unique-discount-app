@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActionFunctionArgs, LoaderFunctionArgs, json } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs} from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { useFetcher, useLoaderData } from "@remix-run/react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -9,8 +10,14 @@ import bcrypt from "bcryptjs";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  await requireAppUser(request, "canViewSettings");
+  const user = await requireAppUser(request, "canViewSettings");
   
+  if (!user) {
+    return json({ 
+      settings: { isActive: false, targetProductId: "", discountPercentageProduct: 10, discountPercentageStore: 15, logRetentionDays: 30 },
+      users: [] as any[]
+    });
+  }
   const shop = session.shop;
 
   let settings = await prisma.appSettings.findUnique({ where: { shop } });

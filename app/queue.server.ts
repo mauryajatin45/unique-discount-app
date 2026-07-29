@@ -1,4 +1,5 @@
-import { Queue, Worker, Job } from "bullmq";
+import type { Job } from "bullmq";
+import { Queue, Worker } from "bullmq";
 import Redis from "ioredis";
 import prisma from "./db.server";
 import shopify from "./shopify.server";
@@ -51,24 +52,13 @@ const worker = new Worker(
       }
 
       // Get Offline Session for GraphQL API
-      const offlineSessionId = shopify.sessionStorage.findSessionsByShop(shop);
-      const sessions = await offlineSessionId;
-      const session = sessions[0]; // Get the first valid session
-
-      if (!session) {
-        throw new Error(`No session found for shop ${shop}`);
-      }
-
-      const admin = shopify.admin.graphql({ session });
+      const { admin } = await shopify.unauthenticated.admin(shop);
 
       // Calculate expiration date (6 months from now)
       const endsAt = new Date();
       endsAt.setMonth(endsAt.getMonth() + 6);
       const endsAtISO = endsAt.toISOString();
 
-      const customerId = orderData.customer?.id;
-      const customerEmail = orderData.customer?.email;
-      const customerPhone = orderData.customer?.phone;
       const customerName = orderData.customer?.first_name || "Customer";
 
       const discountPercentageProduct = parseFloat(settings.discountPercentageProduct?.toString() || "10.0") / 100;
@@ -79,7 +69,7 @@ const worker = new Worker(
       const code1 = `TARGET-${suffix1}`;
 
       // Step B: Create Price Rule for Code 1 (Specific Product)
-      const priceRule1Response = await admin(`
+      const priceRule1Response = await admin.graphql(`
         mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
           discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
             codeDiscountNode {
@@ -134,7 +124,7 @@ const worker = new Worker(
       const code2 = `STORE-${suffix2}`;
 
       // Step C: Create Price Rule for Code 2 (Storewide excluding target product)
-      const priceRule2Response = await admin(`
+      const priceRule2Response = await admin.graphql(`
         mutation discountCodeBasicCreate($basicCodeDiscount: DiscountCodeBasicInput!) {
           discountCodeBasicCreate(basicCodeDiscount: $basicCodeDiscount) {
             codeDiscountNode {
