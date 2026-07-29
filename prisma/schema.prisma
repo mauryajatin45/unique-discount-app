@@ -34,11 +34,32 @@ model Session {
 }
 
 model AppSettings {
-  id                     Int     @id @default(1)
-  shop                   String  @unique
-  isActive               Boolean @default(false)
+  id                     Int      @id @default(1)
+  shop                   String   @unique
+  isActive               Boolean  @default(false)
   targetProductId        String?
   discountPercentageProduct Decimal? @default(10.0)
   discountPercentageStore   Decimal? @default(15.0)
+  logRetentionDays       Int      @default(30)
   updatedAt              DateTime @updatedAt
 }
+
+model Log {
+  id              Int      @id @default(autoincrement())
+  shop            String
+  orderId         String
+  customerName    String?
+  productCode     String?
+  storewideCode   String?
+  createdAt       DateTime @default(now())
+}
+
+model AppUser {
+  id        Int      @id @default(autoincrement())
+  shop      String
+  email     String
+  name      String?
+  role      String   @default("Staff") // Admin, Staff
+  createdAt DateTime @default(now())
+}
+

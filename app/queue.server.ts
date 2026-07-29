@@ -193,7 +193,32 @@ const worker = new Worker(
       });
       */
       
-      console.log(`Successfully generated codes ${code1} and ${code2} for order ${orderId}`);
+      // Save log to database (Delivery Status removed as per client request, so no need to track it)
+      await prisma.log.create({
+        data: {
+          shop,
+          orderId: String(orderId),
+          customerName,
+          productCode: code1,
+          storewideCode: code2,
+        }
+      });
+
+      // Cleanup old logs
+      const retentionDays = settings.logRetentionDays || 30;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+      await prisma.log.deleteMany({
+        where: {
+          shop,
+          createdAt: {
+            lt: cutoffDate,
+          }
+        }
+      });
+
+      console.log(`Successfully generated and logged codes ${code1} and ${code2} for order ${orderId}`);
 
     } catch (error) {
       console.error(`Error processing job for order ${orderId}:`, error);

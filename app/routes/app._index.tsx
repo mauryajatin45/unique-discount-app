@@ -1,20 +1,5 @@
-import { useEffect, useState } from "react";
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
-import { useFetcher, useLoaderData } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  Box,
-  InlineStack,
-  TextField,
-  Banner,
-  Divider,
-} from "@shopify/polaris";
-import { TitleBar, useAppBridge } from "@shopify/app-bridge-react";
+import { LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -22,187 +7,106 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = session.shop;
 
-  let settings = await prisma.appSettings.findUnique({ where: { shop } });
-  if (!settings) {
-    settings = await prisma.appSettings.create({
-      data: {
-        shop,
-        isActive: false,
-        discountPercentageProduct: 10.0,
-        discountPercentageStore: 15.0,
-      }
-    });
-  }
-
-  // To show metrics in a real app, you would query your DB for orders processed.
-  // For the sake of this dashboard, we just pass the settings.
-  return { settings };
-};
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
-
-  const formData = await request.formData();
-  const isActive = formData.get("isActive") === "true";
-  const targetProductId = formData.get("targetProductId")?.toString();
-  const discountPercentageProduct = parseFloat(formData.get("discountPercentageProduct")?.toString() || "10");
-  const discountPercentageStore = parseFloat(formData.get("discountPercentageStore")?.toString() || "15");
-
-  const settings = await prisma.appSettings.update({
+  const totalLogs = await prisma.log.count({ where: { shop } });
+  const recentLogs = await prisma.log.findMany({
     where: { shop },
-    data: {
-      isActive,
-      targetProductId,
-      discountPercentageProduct,
-      discountPercentageStore,
-    }
+    orderBy: { createdAt: 'desc' },
+    take: 5
   });
 
-  return { settings };
+  return { totalLogs, recentLogs };
 };
 
-export default function Index() {
-  const { settings } = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<typeof action>();
-  const shopify = useAppBridge();
-
-  const [isActive, setIsActive] = useState(settings.isActive);
-  const [targetProductId, setTargetProductId] = useState(settings.targetProductId || "");
-  const [discountPercentageProduct, setDiscountPercentageProduct] = useState(settings.discountPercentageProduct?.toString() || "10");
-  const [discountPercentageStore, setDiscountPercentageStore] = useState(settings.discountPercentageStore?.toString() || "15");
-
-  const isSaving = fetcher.state === "submitting";
-  const actionData = fetcher.data as any;
-
-  useEffect(() => {
-    if (actionData?.settings) {
-      shopify.toast.show("Settings saved successfully!");
-    }
-  }, [actionData, shopify]);
-
-  const handleSave = () => {
-    fetcher.submit(
-      {
-        isActive: isActive.toString(),
-        targetProductId,
-        discountPercentageProduct,
-        discountPercentageStore,
-      },
-      { method: "POST" }
-    );
-  };
-
-  const handleSelectProduct = async () => {
-    try {
-      const selection = await shopify.resourcePicker({ type: 'product', multiple: false, action: 'select' });
-      if (selection && selection.length > 0) {
-        setTargetProductId(selection[0].id);
-      }
-    } catch (err) {
-      console.log("Resource picker cancelled or failed", err);
-    }
-  };
+export default function Dashboard() {
+  const { totalLogs, recentLogs } = useLoaderData<typeof loader>();
 
   return (
-    <Page>
-      <TitleBar title="Unique Custom Discount Code Dashboard" />
-      <BlockStack gap="500">
-        <Layout>
-          
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingLg">
-                  Dashboard & Metrics
-                </Text>
-                
-                <InlineStack align="space-between">
-                  <Box padding="400" background="bg-surface-secondary" borderRadius="200" width="48%">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyMd" tone="subdued">Webhooks Processed</Text>
-                      <Text as="h3" variant="headingXl">1,204</Text>
-                    </BlockStack>
-                  </Box>
-                  <Box padding="400" background="bg-surface-secondary" borderRadius="200" width="48%">
-                    <BlockStack gap="200">
-                      <Text as="p" variant="bodyMd" tone="subdued">Codes Generated</Text>
-                      <Text as="h3" variant="headingXl">2,408</Text>
-                    </BlockStack>
-                  </Box>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
+    <div className="custom-dashboard">
+      <div className="custom-card">
+        <h1 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>
+          Loyalty Automation Engine
+        </h1>
+        
+        <div className="metrics-grid">
+          <div className="metric-card">
+            <span className="metric-title">Webhooks Processed Today</span>
+            <span className="metric-value">{totalLogs}</span>
+          </div>
+          <div className="metric-card">
+            <span className="metric-title">Discount Codes Generated</span>
+            <span className="metric-value">{totalLogs * 2}</span>
+          </div>
+          <div className="metric-card">
+            <span className="metric-title">Queue Status</span>
+            <span className="metric-value" style={{ color: 'var(--app-primary)' }}>Active</span>
+          </div>
+        </div>
 
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <Text as="h2" variant="headingLg">
-                  Offer Configuration
-                </Text>
+        <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '32px 0 16px 0' }}>Live Execution Logs</h2>
+        
+        <div style={{ overflowX: 'auto' }}>
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer Name</th>
+                <th>Product Code</th>
+                <th>Storewide Code</th>
+                <th>Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentLogs.length > 0 ? (
+                recentLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td>#{log.orderId}</td>
+                    <td style={{ fontWeight: 500 }}>{log.customerName || 'N/A'}</td>
+                    <td><span className="badge badge-neutral">{log.productCode}</span></td>
+                    <td><span className="badge badge-neutral">{log.storewideCode}</span></td>
+                    <td style={{ color: 'var(--app-text-muted)', fontSize: '12px' }}>
+                      {new Date(log.createdAt).toLocaleTimeString()}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--app-text-muted)' }}>
+                    No logs generated yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-                <Banner
-                  title={isActive ? "Offer is Currently Active" : "Offer is Currently Disabled"}
-                  tone={isActive ? "success" : "warning"}
-                >
-                  <p>
-                    {isActive 
-                      ? "The system is currently listening for paid orders and will automatically generate the discounts."
-                      : "The system is paused. No discounts will be generated for incoming orders until this is enabled."}
-                  </p>
-                  <div style={{ marginTop: '1rem' }}>
-                    <Button onClick={() => setIsActive(!isActive)}>
-                      {isActive ? "Deactivate Offer" : "Activate Offer"}
-                    </Button>
-                  </div>
-                </Banner>
+        <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '32px 0 16px 0' }}>Automation Pipeline</h2>
+        <div className="pipeline-container">
+          <div className="pipeline-step">
+            <div className="step-number active">01</div>
+            <div>
+              <p className="step-title">Order Webhook</p>
+              <p className="step-subtitle">Shopify orders/create</p>
+            </div>
+          </div>
+          <div className="pipeline-arrow">→</div>
+          <div className="pipeline-step">
+            <div className="step-number active">02</div>
+            <div>
+              <p className="step-title">Generate Codes</p>
+              <p className="step-subtitle">Discount API - 2 codes</p>
+            </div>
+          </div>
+          <div className="pipeline-arrow">→</div>
+          <div className="pipeline-step">
+            <div className="step-number pending">03</div>
+            <div>
+              <p className="step-title">External API</p>
+              <p className="step-subtitle">Pending Integration</p>
+            </div>
+          </div>
+        </div>
 
-                <Divider />
-
-                <Text as="h3" variant="headingMd">Target Settings</Text>
-
-                <BlockStack gap="300">
-                  <InlineStack align="space-between" blockAlign="center">
-                    <Text as="p" variant="bodyMd">Target Product:</Text>
-                    <InlineStack gap="200" blockAlign="center">
-                      <Text as="p" variant="bodyMd" tone="subdued">
-                        {targetProductId ? targetProductId : "None selected"}
-                      </Text>
-                      <Button onClick={handleSelectProduct}>Select Product</Button>
-                    </InlineStack>
-                  </InlineStack>
-
-                  <TextField
-                    label="Discount for Target Product (%)"
-                    type="number"
-                    value={discountPercentageProduct}
-                    onChange={setDiscountPercentageProduct}
-                    autoComplete="off"
-                    helpText="e.g. 10 for 10% off the target product"
-                  />
-
-                  <TextField
-                    label="Discount for Storewide (excluding target) (%)"
-                    type="number"
-                    value={discountPercentageStore}
-                    onChange={setDiscountPercentageStore}
-                    autoComplete="off"
-                    helpText="e.g. 15 for 15% off everything else"
-                  />
-                </BlockStack>
-
-                <InlineStack align="end">
-                  <Button variant="primary" onClick={handleSave} loading={isSaving}>
-                    Save Settings
-                  </Button>
-                </InlineStack>
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-
-        </Layout>
-      </BlockStack>
-    </Page>
+      </div>
+    </div>
   );
 }
