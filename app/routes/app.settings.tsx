@@ -127,7 +127,7 @@ export default function SettingsPage() {
       <div className="custom-card">
         <h1 style={{ fontSize: '24px', fontWeight: 600, marginBottom: '24px' }}>Configuration Settings</h1>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isActive ? '#ecfdf5' : '#fffbeb', padding: '16px', borderRadius: '8px', border: \`1px solid \${isActive ? '#10b981' : '#f59e0b'}\`, marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: isActive ? '#ecfdf5' : '#fffbeb', padding: '16px', borderRadius: '8px', border: `1px solid ${isActive ? '#10b981' : '#f59e0b'}`, marginBottom: '24px' }}>
           <div>
             <h3 style={{ margin: 0, fontSize: '16px', color: isActive ? '#065f46' : '#92400e' }}>
               {isActive ? "Offer is Active" : "Offer is Disabled"}
