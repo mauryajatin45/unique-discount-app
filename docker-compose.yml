@@ -18,6 +18,7 @@ services:
       - PORT=3000
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
+      - SHOPIFY_APP_URL=${SHOPIFY_APP_URL}
     networks:
       - default
       - mysql-xpsz_default
