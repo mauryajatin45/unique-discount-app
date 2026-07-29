@@ -21,4 +21,4 @@ jobs:
           script: |
             cd /var/www/unique-discount-app
             git pull origin main
-            docker-compose up -d --build app redis
+            docker compose up -d --build app redis
