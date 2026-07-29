@@ -6,9 +6,9 @@ const sessionSecret = process.env.SESSION_SECRET || "fallback_default_secret_for
 export const appAuthSessionStorage = createCookieSessionStorage({
   cookie: {
     name: "_app_user_auth",
-    secure: process.env.NODE_ENV === "production",
+    secure: true,
     secrets: [sessionSecret],
-    sameSite: "lax",
+    sameSite: "none",
     path: "/",
     maxAge: 60 * 60 * 24 * 30, // 30 days
     httpOnly: true,
