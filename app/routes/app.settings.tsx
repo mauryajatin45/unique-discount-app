@@ -234,42 +234,58 @@ export default function SettingsPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
               Offer Rules
             </h2>
-            <div className="form-group">
-              <label className="form-label">Order Trigger Condition</label>
-              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                  <input type="radio" name="triggerMode" value="ALL_PRODUCTS" checked={triggerMode === "ALL_PRODUCTS"} onChange={(e) => setTriggerMode(e.target.value)} /> Any Product Checkout
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                  <input type="radio" name="triggerMode" value="SPECIFIC_PRODUCT" checked={triggerMode === "SPECIFIC_PRODUCT"} onChange={(e) => setTriggerMode(e.target.value)} /> Specific Product Only
-                </label>
-              </div>
-            </div>
-
-            {triggerMode === "SPECIFIC_PRODUCT" && (
-              <div className="form-group" style={{ paddingLeft: '16px', borderLeft: '2px solid var(--app-primary)' }}>
-                <label className="form-label">Trigger Product (Must be in cart)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input className="form-input" value={triggerProductId} readOnly placeholder="Click select to choose..." style={{ background: '#f9fafb' }} />
-                  <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select</button>
+            <div style={{ background: '#f9fafb', padding: '24px', borderRadius: '12px', border: '1px solid var(--app-border)' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>1. When should the discounts be generated?</h3>
+              <div className="form-group" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input type="radio" name="triggerMode" value="ALL_PRODUCTS" checked={triggerMode === "ALL_PRODUCTS"} onChange={(e) => setTriggerMode(e.target.value)} /> For every order (Any Product)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                    <input type="radio" name="triggerMode" value="SPECIFIC_PRODUCT" checked={triggerMode === "SPECIFIC_PRODUCT"} onChange={(e) => setTriggerMode(e.target.value)} /> Only when a specific product is purchased
+                  </label>
                 </div>
               </div>
-            )}
 
-            <div className="form-group">
-              <label className="form-label">Target Product (Receives Discount 2)</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input className="form-input" value={targetProductId} readOnly placeholder="Click select to choose..." style={{ background: '#f9fafb' }} />
-                <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
+              {triggerMode === "SPECIFIC_PRODUCT" && (
+                <div className="form-group" style={{ marginTop: '16px', paddingLeft: '16px', borderLeft: '2px solid var(--app-primary)' }}>
+                  <label className="form-label">Which product must they buy?</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input className="form-input" value={triggerProductId} readOnly placeholder="Click select to choose..." style={{ background: '#fff' }} />
+                    <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select Product</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ background: '#f9fafb', padding: '24px', borderRadius: '12px', border: '1px solid var(--app-border)', marginTop: '24px' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>2. What discounts do they receive?</h3>
+              <p style={{ fontSize: '13px', color: 'var(--app-text-muted)', marginBottom: '16px' }}>The app always generates 2 unique codes for the customer.</p>
+              
+              <div className="form-group" style={{ background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Discount Code 1: Specific Product</label>
+                <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Discount Amount (%)</label>
+                    <input className="form-input" type="number" value={discountPercentageProduct} onChange={(e) => setDiscountPercentageProduct(e.target.value)} style={{ marginTop: '4px' }} />
+                  </div>
+                  <div style={{ flex: 2 }}>
+                    <label style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Applies to which product?</label>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <input className="form-input" value={targetProductId} readOnly placeholder="Choose product..." style={{ background: '#f9fafb' }} />
+                      <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Discount for Target (%)</label>
-              <input className="form-input" type="number" value={discountPercentageProduct} onChange={(e) => setDiscountPercentageProduct(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Discount Storewide (%)</label>
-              <input className="form-input" type="number" value={discountPercentageStore} onChange={(e) => setDiscountPercentageStore(e.target.value)} />
+
+              <div className="form-group" style={{ background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #e5e7eb', margin: 0, marginTop: '16px' }}>
+                <label className="form-label" style={{ fontWeight: 600 }}>Discount Code 2: Entire Store</label>
+                <div style={{ marginTop: '12px' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Discount Amount (%)</label>
+                  <input className="form-input" type="number" value={discountPercentageStore} onChange={(e) => setDiscountPercentageStore(e.target.value)} style={{ marginTop: '4px', maxWidth: '150px' }} />
+                </div>
+              </div>
             </div>
           </div>
 
