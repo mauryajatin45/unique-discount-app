@@ -17,8 +17,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const logs = await prisma.log.findMany({
     where: { shop },
-    orderBy: { createdAt: 'desc' },
-    take: 50 // Show last 50 logs for now
+    orderBy: { createdAt: 'desc' }
   });
 
   return json({ logs });
@@ -35,8 +34,8 @@ export default function LogsPage() {
           <h1>System Logs & Queues</h1>
           <p>Complete history of processed orders and generated discount codes.</p>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ background: 'rgba(255,255,255,0.2)', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>
           </svg>
         </div>
@@ -50,6 +49,7 @@ export default function LogsPage() {
               <tr>
                 <th>Order ID</th>
                 <th>Customer Name</th>
+                <th>Generated Rules Context</th>
                 <th>Target Code</th>
                 <th>Storewide Code</th>
                 <th>Generated At</th>
@@ -61,6 +61,12 @@ export default function LogsPage() {
                   <tr key={log.id} style={{ transition: 'background-color 0.2s', cursor: 'default' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                     <td style={{ fontWeight: 600, color: 'var(--app-primary)' }}>#{log.orderId}</td>
                     <td style={{ fontWeight: 500 }}>{log.customerName || 'N/A'}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Trigger: {log.triggerModeUsed === "SPECIFIC_PRODUCT" ? "Specific Product" : "Any Product"}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Discount: {log.discountPercentageProductUsed?.toString()}% / {log.discountPercentageStoreUsed?.toString()}%</span>
+                      </div>
+                    </td>
                     <td><span className="badge badge-success" style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}>{log.productCode}</span></td>
                     <td><span className="badge badge-success" style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}>{log.storewideCode}</span></td>
                     <td style={{ color: 'var(--app-text-muted)', fontSize: '12px' }}>

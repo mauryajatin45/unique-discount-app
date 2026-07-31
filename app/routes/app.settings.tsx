@@ -14,7 +14,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   if (!user) {
     return json({ 
-      settings: { isActive: false, targetProductId: "", discountPercentageProduct: 10, discountPercentageStore: 15, logRetentionDays: 30 },
+      settings: { isActive: false, triggerMode: "ALL_PRODUCTS", triggerProductId: "", targetProductId: "", discountPercentageProduct: 10, discountPercentageStore: 15, logRetentionDays: 30 },
       users: [] as any[]
     });
   }
@@ -43,6 +43,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "save_settings") {
     const isActive = formData.get("isActive") === "true";
+    const triggerMode = formData.get("triggerMode")?.toString() || "ALL_PRODUCTS";
+    const triggerProductId = formData.get("triggerProductId")?.toString();
     const targetProductId = formData.get("targetProductId")?.toString();
     const discountPercentageProduct = parseFloat(formData.get("discountPercentageProduct")?.toString() || "10");
     const discountPercentageStore = parseFloat(formData.get("discountPercentageStore")?.toString() || "15");
@@ -50,7 +52,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     await prisma.appSettings.update({
       where: { shop },
-      data: { isActive, targetProductId, discountPercentageProduct, discountPercentageStore, logRetentionDays }
+      data: { isActive, triggerMode, triggerProductId, targetProductId, discountPercentageProduct, discountPercentageStore, logRetentionDays }
     });
     return json({ success: true, message: "Settings saved" });
   }
@@ -98,6 +100,8 @@ export default function SettingsPage() {
   const shopify = useAppBridge();
 
   const [isActive, setIsActive] = useState(settings.isActive);
+  const [triggerMode, setTriggerMode] = useState(settings.triggerMode || "ALL_PRODUCTS");
+  const [triggerProductId, setTriggerProductId] = useState(settings.triggerProductId || "");
   const [targetProductId, setTargetProductId] = useState(settings.targetProductId || "");
   const [discountPercentageProduct, setDiscountPercentageProduct] = useState(settings.discountPercentageProduct?.toString() || "10");
   const [discountPercentageStore, setDiscountPercentageStore] = useState(settings.discountPercentageStore?.toString() || "15");
@@ -136,7 +140,9 @@ export default function SettingsPage() {
       {
         intent: "save_settings",
         isActive: isActive.toString(),
-        targetProductId,
+        triggerMode,
+        triggerProductId: triggerProductId || "",
+        targetProductId: targetProductId || "",
         discountPercentageProduct,
         discountPercentageStore,
         logRetentionDays
@@ -177,11 +183,15 @@ export default function SettingsPage() {
     );
   };
 
-  const handleSelectProduct = async () => {
+  const handleSelectProduct = async (type: 'trigger' | 'target') => {
     try {
       const selection = await shopify.resourcePicker({ type: 'product', multiple: false, action: 'select' });
       if (selection && selection.length > 0) {
-        setTargetProductId(selection[0].id);
+        if (type === 'trigger') {
+          setTriggerProductId(selection[0].id);
+        } else {
+          setTargetProductId(selection[0].id);
+        }
       }
     } catch (err) {
       console.log("Resource picker cancelled or failed", err);
@@ -195,8 +205,8 @@ export default function SettingsPage() {
           <h1>Configuration Settings</h1>
           <p>Manage offer rules, user access, and system preferences.</p>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.1)', padding: '12px', borderRadius: '50%' }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ background: 'rgba(255,255,255,0.1)', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </div>
@@ -225,10 +235,32 @@ export default function SettingsPage() {
               Offer Rules
             </h2>
             <div className="form-group">
-              <label className="form-label">Target Product ID</label>
+              <label className="form-label">Order Trigger Condition</label>
+              <div style={{ display: 'flex', gap: '16px', marginBottom: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                  <input type="radio" name="triggerMode" value="ALL_PRODUCTS" checked={triggerMode === "ALL_PRODUCTS"} onChange={(e) => setTriggerMode(e.target.value)} /> Any Product Checkout
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                  <input type="radio" name="triggerMode" value="SPECIFIC_PRODUCT" checked={triggerMode === "SPECIFIC_PRODUCT"} onChange={(e) => setTriggerMode(e.target.value)} /> Specific Product Only
+                </label>
+              </div>
+            </div>
+
+            {triggerMode === "SPECIFIC_PRODUCT" && (
+              <div className="form-group" style={{ paddingLeft: '16px', borderLeft: '2px solid var(--app-primary)' }}>
+                <label className="form-label">Trigger Product (Must be in cart)</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input className="form-input" value={triggerProductId} readOnly placeholder="Click select to choose..." style={{ background: '#f9fafb' }} />
+                  <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select</button>
+                </div>
+              </div>
+            )}
+
+            <div className="form-group">
+              <label className="form-label">Target Product (Receives Discount 2)</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input className="form-input" value={targetProductId} readOnly placeholder="Click select to choose..." style={{ background: '#f9fafb' }} />
-                <button className="btn-primary" style={{ background: '#374151' }} onClick={handleSelectProduct}>Select</button>
+                <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
               </div>
             </div>
             <div className="form-group">

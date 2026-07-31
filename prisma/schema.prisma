@@ -37,6 +37,8 @@ model AppSettings {
   id                     Int      @id @default(1)
   shop                   String   @unique
   isActive               Boolean  @default(false)
+  triggerMode            String   @default("ALL_PRODUCTS")
+  triggerProductId       String?
   targetProductId        String?
   discountPercentageProduct Decimal? @default(10.0)
   discountPercentageStore   Decimal? @default(15.0)
@@ -51,6 +53,13 @@ model Log {
   customerName    String?
   productCode     String?
   storewideCode   String?
+  
+  triggerModeUsed          String?
+  triggerProductIdUsed     String?
+  targetProductIdUsed      String?
+  discountPercentageProductUsed Decimal?
+  discountPercentageStoreUsed   Decimal?
+
   createdAt       DateTime @default(now())
 }
 

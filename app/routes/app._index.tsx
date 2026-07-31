@@ -3,6 +3,7 @@ import { useLoaderData } from "@remix-run/react";
 import { authenticate } from "../shopify.server";
 import { requireAppUser } from "../auth.server";
 import prisma from "../db.server";
+import { orderQueue } from "../queue.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -17,6 +18,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = session.shop;
 
+  const settings = await prisma.appSettings.findUnique({ where: { shop } });
+  
   const totalLogs = await prisma.log.count({ where: { shop } });
   const recentLogs = await prisma.log.findMany({
     where: { shop },
@@ -24,7 +27,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     take: 5
   });
 
-  return { totalLogs, recentLogs };
+  const queueCounts = await orderQueue.getJobCounts('waiting', 'active', 'completed', 'failed');
+  const rawJobs = await orderQueue.getJobs(['active', 'waiting'], 0, 5, true);
+  const activeJobs = rawJobs.map(job => ({
+    id: job.id,
+    orderId: job.data?.orderId,
+    status: job.isWaiting() ? 'waiting' : 'active'
+  }));
+
+  return { totalLogs, recentLogs, settings, queueCounts, activeJobs };
 };
 
 export default function Dashboard() {
@@ -38,8 +49,8 @@ export default function Dashboard() {
           <h1>Loyalty Automation Engine</h1>
           <p>Your store is actively generating customized discount experiences.</p>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.2)', padding: '12px', borderRadius: '50%' }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <div style={{ background: 'rgba(255,255,255,0.2)', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
           </svg>
         </div>
@@ -73,9 +84,50 @@ export default function Dashboard() {
             </div>
             <h3 className="metric-title">Queue Status</h3>
           </div>
-          <span className="metric-value" style={{ color: 'var(--app-primary)' }}>Active</span>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'baseline' }}>
+            <span className="metric-value" style={{ color: 'var(--app-primary)' }}>{queueCounts.active + queueCounts.waiting}</span>
+            <span style={{ color: 'var(--app-text-muted)', fontSize: '14px', fontWeight: 500 }}>Active / Pending</span>
+          </div>
         </div>
       </div>
+
+      <div className="custom-card" style={{ background: '#f8fafc', borderColor: '#e2e8f0', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+          Current Active Rules
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Trigger Condition</p>
+            <p style={{ margin: 0, fontWeight: 500 }}>{settings?.triggerMode === "SPECIFIC_PRODUCT" ? "Specific Product Checkout" : "Any Product Checkout"}</p>
+          </div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Discount 1 (Target)</p>
+            <p style={{ margin: 0, fontWeight: 500, color: 'var(--app-primary)' }}>{settings?.discountPercentageProduct?.toString()}% Off Target Product</p>
+          </div>
+          <div>
+            <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Discount 2 (Storewide)</p>
+            <p style={{ margin: 0, fontWeight: 500, color: 'var(--app-primary)' }}>{settings?.discountPercentageStore?.toString()}% Off Storewide</p>
+          </div>
+        </div>
+      </div>
+
+      {activeJobs.length > 0 && (
+        <div className="custom-card" style={{ marginBottom: '24px', borderColor: '#bfdbfe' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 16px 0', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '8px', height: '8px', background: '#3b82f6', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+            Currently Processing in Queue
+          </h2>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {activeJobs.map(job => (
+              <div key={job.id} style={{ background: job.status === 'active' ? '#dbeafe' : '#f1f5f9', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, color: job.status === 'active' ? '#1e40af' : '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {job.status === 'active' ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>}
+                Order #{job.orderId}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="custom-card">
         <h2 style={{ fontSize: '18px', fontWeight: 600, margin: '0 0 24px 0' }}>Recent Activity Logs</h2>

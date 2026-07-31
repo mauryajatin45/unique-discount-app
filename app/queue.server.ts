@@ -40,15 +40,23 @@ const worker = new Worker(
         return;
       }
 
-      // Check if order contains the target product
+      // Check trigger condition
+      const triggerMode = settings.triggerMode || "ALL_PRODUCTS";
       const lineItems = orderData.line_items || [];
-      const hasTargetProduct = lineItems.some(
-        (item: any) => `gid://shopify/Product/${item.product_id}` === targetProductId
-      );
 
-      if (!hasTargetProduct) {
-        console.log(`Order ${orderId} does not contain target product. Skipping.`);
-        return;
+      if (triggerMode === "SPECIFIC_PRODUCT") {
+        const triggerProductId = settings.triggerProductId;
+        if (!triggerProductId) {
+          console.log(`Specific product trigger selected but no trigger product configured for ${shop}. Skipping.`);
+          return;
+        }
+        const hasTriggerProduct = lineItems.some(
+          (item: any) => `gid://shopify/Product/${item.product_id}` === triggerProductId
+        );
+        if (!hasTriggerProduct) {
+          console.log(`Order ${orderId} does not contain trigger product. Skipping.`);
+          return;
+        }
       }
 
       // Get Offline Session for GraphQL API
@@ -191,6 +199,11 @@ const worker = new Worker(
           customerName,
           productCode: code1,
           storewideCode: code2,
+          triggerModeUsed: triggerMode,
+          triggerProductIdUsed: settings.triggerProductId,
+          targetProductIdUsed: targetProductId,
+          discountPercentageProductUsed: settings.discountPercentageProduct,
+          discountPercentageStoreUsed: settings.discountPercentageStore
         }
       });
 
