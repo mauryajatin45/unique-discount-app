@@ -10,10 +10,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const user = await requireAppUser(request, "canViewDashboard");
 
   if (!user) {
-    // Check if they are just logged out (which is handled by app.tsx) or lacking permission
-    // Actually if they lack permission we should redirect them to a page they CAN view.
-    // For simplicity, if user is null we just return empty so app.tsx can render the login screen safely.
-    return { totalLogs: 0, recentLogs: [] };
+    return { 
+      totalLogs: 0, 
+      recentLogs: [], 
+      settings: null, 
+      queueCounts: { active: 0, waiting: 0, completed: 0, failed: 0 }, 
+      activeJobs: [] 
+    };
   }
 
   const shop = session.shop;
@@ -27,13 +30,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     take: 5
   });
 
-  const queueCounts = await orderQueue.getJobCounts('waiting', 'active', 'completed', 'failed');
-  const rawJobs = await orderQueue.getJobs(['active', 'waiting'], 0, 5, true);
-  const activeJobs = rawJobs.map(job => ({
-    id: job.id,
-    orderId: job.data?.orderId,
-    status: job.isWaiting() ? 'waiting' : 'active'
-  }));
+  let queueCounts = { active: 0, waiting: 0, completed: 0, failed: 0 };
+  let activeJobs: any[] = [];
+  
+  try {
+    queueCounts = await orderQueue.getJobCounts('waiting', 'active', 'completed', 'failed');
+    const rawJobs = await orderQueue.getJobs(['active', 'waiting'], 0, 5, true);
+    activeJobs = rawJobs.map(job => ({
+      id: job.id,
+      orderId: job.data?.orderId,
+      status: job.isWaiting() ? 'waiting' : 'active'
+    }));
+  } catch (err) {
+    console.error("Failed to connect to Redis/BullMQ to fetch queue stats:", err);
+  }
 
   return { totalLogs, recentLogs, settings, queueCounts, activeJobs };
 };
