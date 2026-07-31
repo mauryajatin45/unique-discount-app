@@ -49,7 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function Dashboard() {
-  const { totalLogs, recentLogs } = useLoaderData<typeof loader>();
+  const { totalLogs, recentLogs, settings, queueCounts, activeJobs } = useLoaderData<typeof loader>();
 
   return (
     <div className="custom-dashboard">
