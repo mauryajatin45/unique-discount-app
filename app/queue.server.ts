@@ -3,6 +3,7 @@ import { Queue, Worker } from "bullmq";
 import Redis from "ioredis";
 import prisma from "./db.server";
 import shopify from "./shopify.server";
+import { generateLoyaltyCard } from "./image.server";
 
 // 1. Setup Redis Connection
 const redisConnection = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
@@ -176,22 +177,36 @@ const worker = new Worker(
       // but for standard Shopify Basic discounts, exclusions aren't natively supported on all-items without using custom Collections. 
       // For the scope of this app architecture, we create the general code here).
 
-      // Step D: External API Handoff (Placeholder)
+      // Step D: Phase 4 (Visual Assembly) - Generate Image
+      console.log(`Generating loyalty card image for ${customerName}...`);
+      const loyaltyCardUrl = await generateLoyaltyCard(
+        String(orderId), 
+        customerName, 
+        code1, 
+        code2
+      );
+      console.log(`Loyalty card generated successfully: ${loyaltyCardUrl}`);
+
+      // Step E: Phase 5 (The Delivery) - Send to BusinessChat.io
+      // We will implement this once we have the API Key and Template ID from the user
       /*
-      await fetch("https://external-api.example.com/generate", {
+      console.log(`Sending WhatsApp message to ${customerPhone} via BusinessChat.io...`);
+      await fetch("https://api.businesschat.io/v1/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": "Bearer YOUR_API_KEY"
+        },
         body: JSON.stringify({
-          customerName,
-          customerPhone,
-          customerEmail,
-          code1,
-          code2,
-          orderId
+          to: customerPhone,
+          template: "YOUR_TEMPLATE_ID",
+          variables: {
+            customer_name: customerName,
+            image_url: loyaltyCardUrl
+          }
         })
       });
       */
-      
       // Save log to database (Delivery Status removed as per client request, so no need to track it)
       await prisma.log.create({
         data: {
