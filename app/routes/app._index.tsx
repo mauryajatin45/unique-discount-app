@@ -6,7 +6,7 @@ import prisma from "../db.server";
 import { orderQueue } from "../queue.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const user = await requireAppUser(request, "canViewDashboard");
 
   if (!user) {
@@ -49,8 +49,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let targetProductNames: string[] = [];
   
   if (settings) {
-    const { admin } = await authenticate.admin(request);
-    
     const getProductTitles = async (idsString: string | null) => {
       if (!idsString) return [];
       const ids = idsString.split(',').filter(Boolean);

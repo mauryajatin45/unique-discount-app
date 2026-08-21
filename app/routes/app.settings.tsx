@@ -9,7 +9,7 @@ import prisma from "../db.server";
 import bcrypt from "bcryptjs";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const user = await requireAppUser(request, "canViewSettings");
   
   if (!user) {
@@ -41,7 +41,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (ids.length === 0) return [];
     
     try {
-      const { admin } = await authenticate.admin(request);
       const response = await admin.graphql(`
         query getProducts($ids: [ID!]!) {
           nodes(ids: $ids) {
@@ -134,8 +133,8 @@ export default function SettingsPage() {
   const [triggerMode, setTriggerMode] = useState(settings.triggerMode || "ALL_PRODUCTS");
   const [triggerProductId, setTriggerProductId] = useState(settings.triggerProductId || "");
   const [targetProductId, setTargetProductId] = useState(settings.targetProductId || "");
-  const [localTriggerNames, setLocalTriggerNames] = useState(triggerProductNames.join(', '));
-  const [localTargetNames, setLocalTargetNames] = useState(targetProductNames.join(', '));
+  const [localTriggerNames, setLocalTriggerNames] = useState(triggerProductNames.length > 0 ? triggerProductNames.join(', ') : settings.triggerProductId || "");
+  const [localTargetNames, setLocalTargetNames] = useState(targetProductNames.length > 0 ? targetProductNames.join(', ') : settings.targetProductId || "");
   const [discountPercentageProduct, setDiscountPercentageProduct] = useState(settings.discountPercentageProduct?.toString() || "10");
   const [discountPercentageStore, setDiscountPercentageStore] = useState(settings.discountPercentageStore?.toString() || "15");
   const [logRetentionDays, setLogRetentionDays] = useState(settings.logRetentionDays?.toString() || "30");
