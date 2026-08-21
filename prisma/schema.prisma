@@ -40,6 +40,8 @@ model AppSettings {
   triggerMode            String   @default("ALL_PRODUCTS")
   triggerProductId       String?  @db.Text
   targetProductId        String?  @db.Text
+  triggerProductTitle    String?  @db.Text
+  targetProductTitle     String?  @db.Text
   discountPercentageProduct Decimal? @default(10.0)
   discountPercentageStore   Decimal? @default(15.0)
   logRetentionDays       Int      @default(30)

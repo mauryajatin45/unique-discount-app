@@ -49,32 +49,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   let targetProductNames: string[] = [];
   
   if (settings) {
-    const getProductTitles = async (idsString: string | null) => {
-      if (!idsString) return [];
-      const ids = idsString.split(',').filter(Boolean);
-      if (ids.length === 0) return [];
-      
-      try {
-        const response = await admin.graphql(`
-          query getProducts($ids: [ID!]!) {
-            nodes(ids: $ids) {
-              ... on Product {
-                title
-              }
-            }
-          }
-        `, {
-          variables: { ids }
-        });
-        const data = await response.json();
-        return data.data?.nodes?.map((node: any) => node?.title).filter(Boolean) || [];
-      } catch(e) {
-        return [];
-      }
-    };
-
-    triggerProductNames = await getProductTitles(settings.triggerProductId);
-    targetProductNames = await getProductTitles(settings.targetProductId);
+    if (settings.triggerProductTitle) {
+      triggerProductNames = [settings.triggerProductTitle];
+    }
+    if (settings.targetProductTitle) {
+      targetProductNames = [settings.targetProductTitle];
+    }
   }
 
   return { totalLogs, recentLogs, settings, queueCounts, activeJobs, triggerProductNames, targetProductNames };
@@ -143,14 +123,14 @@ export default function Dashboard() {
             <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Trigger Condition</p>
             <p style={{ margin: 0, fontWeight: 500 }}>
               {settings?.triggerMode === "SPECIFIC_PRODUCT" 
-                ? (triggerProductNames.length > 0 ? `Specific Products: ${triggerProductNames.join(', ')}` : "Specific Product Checkout")
+                ? (triggerProductNames.length > 0 ? `Specific Products: ${triggerProductNames.join(', ')}` : (settings.triggerProductId ? `Specific Products: ${settings.triggerProductId}` : "Specific Product Checkout"))
                 : "Any Product Checkout"}
             </p>
           </div>
           <div>
             <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Discount 1 (Target)</p>
             <p style={{ margin: 0, fontWeight: 500, color: 'var(--app-primary)' }}>
-              {settings?.discountPercentageProduct?.toString()}% Off {targetProductNames.length > 0 ? targetProductNames.join(', ') : "Target Products"}
+              {settings?.discountPercentageProduct?.toString()}% Off {targetProductNames.length > 0 ? targetProductNames.join(', ') : (settings.targetProductId ? settings.targetProductId : "Target Products")}
             </p>
           </div>
           <div>

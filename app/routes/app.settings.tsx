@@ -32,37 +32,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: { id: true, email: true, canViewDashboard: true, canViewLogs: true, canViewSettings: true } 
   });
 
-  let triggerProductNames: string[] = [];
-  let targetProductNames: string[] = [];
-
-  const getProductTitles = async (idsString: string | null) => {
-    if (!idsString) return [];
-    const ids = idsString.split(',').filter(Boolean);
-    if (ids.length === 0) return [];
-    
-    try {
-      const response = await admin.graphql(`
-        query getProducts($ids: [ID!]!) {
-          nodes(ids: $ids) {
-            ... on Product {
-              title
-            }
-          }
-        }
-      `, {
-        variables: { ids }
-      });
-      const data = await response.json();
-      return data.data?.nodes?.map((node: any) => node?.title).filter(Boolean) || [];
-    } catch(e) {
-      return [];
-    }
-  };
-
-  triggerProductNames = await getProductTitles(settings.triggerProductId);
-  targetProductNames = await getProductTitles(settings.targetProductId);
-
-  return json({ settings, users, triggerProductNames, targetProductNames });
+  return json({ settings, users });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -75,14 +45,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const isActive = formData.get("isActive") === "true";
     const triggerMode = formData.get("triggerMode")?.toString() || "ALL_PRODUCTS";
     const triggerProductId = formData.get("triggerProductId")?.toString();
+    const triggerProductTitle = formData.get("triggerProductTitle")?.toString();
     const targetProductId = formData.get("targetProductId")?.toString();
+    const targetProductTitle = formData.get("targetProductTitle")?.toString();
     const discountPercentageProduct = parseFloat(formData.get("discountPercentageProduct")?.toString() || "10");
     const discountPercentageStore = parseFloat(formData.get("discountPercentageStore")?.toString() || "15");
     const logRetentionDays = parseInt(formData.get("logRetentionDays")?.toString() || "30", 10);
 
     await prisma.appSettings.update({
       where: { shop },
-      data: { isActive, triggerMode, triggerProductId, targetProductId, discountPercentageProduct, discountPercentageStore, logRetentionDays }
+      data: { isActive, triggerMode, triggerProductId, triggerProductTitle, targetProductId, targetProductTitle, discountPercentageProduct, discountPercentageStore, logRetentionDays }
     });
     return json({ success: true, message: "Settings saved" });
   }
@@ -125,7 +97,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function SettingsPage() {
-  const { settings, users, triggerProductNames, targetProductNames } = useLoaderData<typeof loader>();
+  const { settings, users } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
@@ -133,8 +105,8 @@ export default function SettingsPage() {
   const [triggerMode, setTriggerMode] = useState(settings.triggerMode || "ALL_PRODUCTS");
   const [triggerProductId, setTriggerProductId] = useState(settings.triggerProductId || "");
   const [targetProductId, setTargetProductId] = useState(settings.targetProductId || "");
-  const [localTriggerNames, setLocalTriggerNames] = useState(triggerProductNames.length > 0 ? triggerProductNames.join(', ') : settings.triggerProductId || "");
-  const [localTargetNames, setLocalTargetNames] = useState(targetProductNames.length > 0 ? targetProductNames.join(', ') : settings.targetProductId || "");
+  const [localTriggerNames, setLocalTriggerNames] = useState(settings.triggerProductTitle || settings.triggerProductId || "");
+  const [localTargetNames, setLocalTargetNames] = useState(settings.targetProductTitle || settings.targetProductId || "");
   const [discountPercentageProduct, setDiscountPercentageProduct] = useState(settings.discountPercentageProduct?.toString() || "10");
   const [discountPercentageStore, setDiscountPercentageStore] = useState(settings.discountPercentageStore?.toString() || "15");
   const [logRetentionDays, setLogRetentionDays] = useState(settings.logRetentionDays?.toString() || "30");
@@ -174,7 +146,9 @@ export default function SettingsPage() {
         isActive: isActive.toString(),
         triggerMode,
         triggerProductId: triggerProductId || "",
+        triggerProductTitle: localTriggerNames || "",
         targetProductId: targetProductId || "",
+        targetProductTitle: localTargetNames || "",
         discountPercentageProduct,
         discountPercentageStore,
         logRetentionDays
