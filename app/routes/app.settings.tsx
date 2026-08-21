@@ -32,7 +32,38 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     select: { id: true, email: true, canViewDashboard: true, canViewLogs: true, canViewSettings: true } 
   });
 
-  return json({ settings, users });
+  let triggerProductNames: string[] = [];
+  let targetProductNames: string[] = [];
+
+  const getProductTitles = async (idsString: string | null) => {
+    if (!idsString) return [];
+    const ids = idsString.split(',').filter(Boolean);
+    if (ids.length === 0) return [];
+    
+    try {
+      const { admin } = await authenticate.admin(request);
+      const response = await admin.graphql(`
+        query getProducts($ids: [ID!]!) {
+          nodes(ids: $ids) {
+            ... on Product {
+              title
+            }
+          }
+        }
+      `, {
+        variables: { ids }
+      });
+      const data = await response.json();
+      return data.data?.nodes?.map((node: any) => node?.title).filter(Boolean) || [];
+    } catch(e) {
+      return [];
+    }
+  };
+
+  triggerProductNames = await getProductTitles(settings.triggerProductId);
+  targetProductNames = await getProductTitles(settings.targetProductId);
+
+  return json({ settings, users, triggerProductNames, targetProductNames });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -95,7 +126,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function SettingsPage() {
-  const { settings, users } = useLoaderData<typeof loader>();
+  const { settings, users, triggerProductNames, targetProductNames } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
 
@@ -103,6 +134,8 @@ export default function SettingsPage() {
   const [triggerMode, setTriggerMode] = useState(settings.triggerMode || "ALL_PRODUCTS");
   const [triggerProductId, setTriggerProductId] = useState(settings.triggerProductId || "");
   const [targetProductId, setTargetProductId] = useState(settings.targetProductId || "");
+  const [localTriggerNames, setLocalTriggerNames] = useState(triggerProductNames.join(', '));
+  const [localTargetNames, setLocalTargetNames] = useState(targetProductNames.join(', '));
   const [discountPercentageProduct, setDiscountPercentageProduct] = useState(settings.discountPercentageProduct?.toString() || "10");
   const [discountPercentageStore, setDiscountPercentageStore] = useState(settings.discountPercentageStore?.toString() || "15");
   const [logRetentionDays, setLogRetentionDays] = useState(settings.logRetentionDays?.toString() || "30");
@@ -188,10 +221,13 @@ export default function SettingsPage() {
       const selection = await shopify.resourcePicker({ type: 'product', multiple: true, action: 'select' });
       if (selection && selection.length > 0) {
         const ids = selection.map((s: any) => s.id).join(',');
+        const titles = selection.map((s: any) => s.title).join(', ');
         if (type === 'trigger') {
           setTriggerProductId(ids);
+          setLocalTriggerNames(titles);
         } else {
           setTargetProductId(ids);
+          setLocalTargetNames(titles);
         }
       }
     } catch (err) {
@@ -252,7 +288,7 @@ export default function SettingsPage() {
                 <div className="form-group" style={{ marginTop: '16px', paddingLeft: '16px', borderLeft: '2px solid var(--app-primary)' }}>
                   <label className="form-label">Which product must they buy?</label>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <input className="form-input" value={triggerProductId} readOnly placeholder="Click select to choose..." style={{ background: '#fff' }} />
+                    <input className="form-input" value={localTriggerNames} readOnly placeholder="Click select to choose..." style={{ background: '#fff' }} />
                     <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select Product</button>
                   </div>
                 </div>
@@ -273,7 +309,7 @@ export default function SettingsPage() {
                   <div style={{ flex: 2 }}>
                     <label style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Applies to which product?</label>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <input className="form-input" value={targetProductId} readOnly placeholder="Choose product..." style={{ background: '#f9fafb' }} />
+                      <input className="form-input" value={localTargetNames} readOnly placeholder="Choose product..." style={{ background: '#f9fafb' }} />
                       <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
                     </div>
                   </div>
