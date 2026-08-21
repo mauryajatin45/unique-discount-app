@@ -185,12 +185,13 @@ export default function SettingsPage() {
 
   const handleSelectProduct = async (type: 'trigger' | 'target') => {
     try {
-      const selection = await shopify.resourcePicker({ type: 'product', multiple: false, action: 'select' });
+      const selection = await shopify.resourcePicker({ type: 'product', multiple: true, action: 'select' });
       if (selection && selection.length > 0) {
+        const ids = selection.map((s: any) => s.id).join(',');
         if (type === 'trigger') {
-          setTriggerProductId(selection[0].id);
+          setTriggerProductId(ids);
         } else {
-          setTargetProductId(selection[0].id);
+          setTargetProductId(ids);
         }
       }
     } catch (err) {

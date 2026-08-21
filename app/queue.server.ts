@@ -45,13 +45,14 @@ const worker = new Worker(
       const lineItems = orderData.line_items || [];
 
       if (triggerMode === "SPECIFIC_PRODUCT") {
-        const triggerProductId = settings.triggerProductId;
-        if (!triggerProductId) {
+        const triggerProductIdStr = settings.triggerProductId;
+        if (!triggerProductIdStr) {
           console.log(`Specific product trigger selected but no trigger product configured for ${shop}. Skipping.`);
           return;
         }
+        const triggerProductIds = triggerProductIdStr.split(',');
         const hasTriggerProduct = lineItems.some(
-          (item: any) => `gid://shopify/Product/${item.product_id}` === triggerProductId
+          (item: any) => triggerProductIds.includes(`gid://shopify/Product/${item.product_id}`)
         );
         if (!hasTriggerProduct) {
           console.log(`Order ${orderId} does not contain trigger product. Skipping.`);
@@ -114,7 +115,7 @@ const worker = new Worker(
               },
               items: {
                 products: {
-                  productsToAdd: [targetProductId]
+                  productsToAdd: targetProductId.split(',')
                 }
               }
             },

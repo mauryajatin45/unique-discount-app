@@ -38,8 +38,8 @@ model AppSettings {
   shop                   String   @unique
   isActive               Boolean  @default(false)
   triggerMode            String   @default("ALL_PRODUCTS")
-  triggerProductId       String?
-  targetProductId        String?
+  triggerProductId       String?  @db.Text
+  targetProductId        String?  @db.Text
   discountPercentageProduct Decimal? @default(10.0)
   discountPercentageStore   Decimal? @default(15.0)
   logRetentionDays       Int      @default(30)
@@ -55,8 +55,8 @@ model Log {
   storewideCode   String?
   
   triggerModeUsed          String?
-  triggerProductIdUsed     String?
-  targetProductIdUsed      String?
+  triggerProductIdUsed     String?  @db.Text
+  targetProductIdUsed      String?  @db.Text
   discountPercentageProductUsed Decimal?
   discountPercentageStoreUsed   Decimal?
 
