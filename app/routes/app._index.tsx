@@ -45,23 +45,53 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     console.error("Failed to connect to Redis/BullMQ to fetch queue stats:", err);
   }
 
-  let triggerProductNames: string[] = [];
-  let targetProductNames: string[] = [];
+  let triggerProducts: any[] = [];
+  let targetProducts: any[] = [];
   
   if (settings) {
-    if (settings.triggerProductTitle) {
-      triggerProductNames = [settings.triggerProductTitle];
-    }
-    if (settings.targetProductTitle) {
-      targetProductNames = [settings.targetProductTitle];
-    }
+    try {
+      if (settings.triggerProductTitle && settings.triggerProductTitle.startsWith('[')) {
+        triggerProducts = JSON.parse(settings.triggerProductTitle);
+      } else if (settings.triggerProductId) {
+        triggerProducts = [{ id: settings.triggerProductId, title: settings.triggerProductId, image: '' }];
+      }
+    } catch(e) {}
+    
+    try {
+      if (settings.targetProductTitle && settings.targetProductTitle.startsWith('[')) {
+        targetProducts = JSON.parse(settings.targetProductTitle);
+      } else if (settings.targetProductId) {
+        targetProducts = [{ id: settings.targetProductId, title: settings.targetProductId, image: '' }];
+      }
+    } catch(e) {}
   }
 
-  return { totalLogs, recentLogs, settings, queueCounts, activeJobs, triggerProductNames, targetProductNames };
+  return { totalLogs, recentLogs, settings, queueCounts, activeJobs, triggerProducts, targetProducts };
 };
 
 export default function Dashboard() {
-  const { totalLogs, recentLogs, settings, queueCounts, activeJobs, triggerProductNames, targetProductNames } = useLoaderData<typeof loader>();
+  const { totalLogs, recentLogs, settings, queueCounts, activeJobs, triggerProducts, targetProducts } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+
+  const renderProductCards = (products: any[]) => {
+    if (!products || products.length === 0) return null;
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+        {products.map((p, idx) => (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#fff' }}>
+            {p.image ? (
+              <img src={p.image} alt={p.title} style={{ width: '20px', height: '20px', objectFit: 'cover', borderRadius: '2px' }} />
+            ) : (
+              <div style={{ width: '20px', height: '20px', background: '#e2e8f0', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              </div>
+            )}
+            <span style={{ fontSize: '12px', fontWeight: 500, color: '#334155', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="custom-dashboard">
@@ -121,17 +151,19 @@ export default function Dashboard() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div>
             <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Trigger Condition</p>
-            <p style={{ margin: 0, fontWeight: 500 }}>
-              {settings?.triggerMode === "SPECIFIC_PRODUCT" 
-                ? (triggerProductNames.length > 0 ? `Specific Products: ${triggerProductNames.join(', ')}` : (settings.triggerProductId ? `Specific Products: ${settings.triggerProductId}` : "Specific Product Checkout"))
-                : "Any Product Checkout"}
-            </p>
+            {settings?.triggerMode === "SPECIFIC_PRODUCT" ? (
+              <div>
+                <p style={{ margin: 0, fontWeight: 500 }}>Specific Products:</p>
+                {triggerProducts.length > 0 ? renderProductCards(triggerProducts) : <p style={{ margin: 0, fontWeight: 500, fontSize: '12px', color: 'var(--app-text-muted)' }}>Not configured</p>}
+              </div>
+            ) : (
+              <p style={{ margin: 0, fontWeight: 500 }}>Any Product Checkout</p>
+            )}
           </div>
           <div>
             <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Discount 1 (Target)</p>
-            <p style={{ margin: 0, fontWeight: 500, color: 'var(--app-primary)' }}>
-              {settings?.discountPercentageProduct?.toString()}% Off {targetProductNames.length > 0 ? targetProductNames.join(', ') : (settings.targetProductId ? settings.targetProductId : "Target Products")}
-            </p>
+            <p style={{ margin: 0, fontWeight: 500, color: 'var(--app-primary)' }}>{settings?.discountPercentageProduct?.toString()}% Off</p>
+            {targetProducts.length > 0 ? renderProductCards(targetProducts) : <p style={{ margin: '4px 0 0 0', fontWeight: 500, fontSize: '12px', color: 'var(--app-text-muted)' }}>Not configured</p>}
           </div>
           <div>
             <p style={{ margin: '0 0 4px 0', fontSize: '12px', color: 'var(--app-text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Discount 2 (Storewide)</p>

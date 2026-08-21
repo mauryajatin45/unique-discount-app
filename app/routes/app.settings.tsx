@@ -194,18 +194,53 @@ export default function SettingsPage() {
       const selection = await shopify.resourcePicker({ type: 'product', multiple: true, action: 'select' });
       if (selection && selection.length > 0) {
         const ids = selection.map((s: any) => s.id).join(',');
-        const titles = selection.map((s: any) => s.title).join(', ');
+        const productData = selection.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          image: s.images && s.images.length > 0 ? s.images[0].originalSrc : ''
+        }));
+        const jsonData = JSON.stringify(productData);
+
         if (type === 'trigger') {
           setTriggerProductId(ids);
-          setLocalTriggerNames(titles);
+          setLocalTriggerNames(jsonData);
         } else {
           setTargetProductId(ids);
-          setLocalTargetNames(titles);
+          setLocalTargetNames(jsonData);
         }
       }
     } catch (err) {
       console.log("Resource picker cancelled or failed", err);
     }
+  };
+
+  const renderProductCards = (jsonString: string) => {
+    let products: any[] = [];
+    try {
+      products = JSON.parse(jsonString);
+      if (!Array.isArray(products)) return null;
+    } catch (e) {
+      return null;
+    }
+    
+    if (products.length === 0) return null;
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+        {products.map(p => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#f8fafc' }}>
+            {p.image ? (
+              <img src={p.image} alt={p.title} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+            ) : (
+              <div style={{ width: '32px', height: '32px', background: '#e2e8f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              </div>
+            )}
+            <span style={{ fontSize: '13px', fontWeight: 500, color: '#334155' }}>{p.title}</span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   return (
@@ -260,9 +295,14 @@ export default function SettingsPage() {
               {triggerMode === "SPECIFIC_PRODUCT" && (
                 <div className="form-group" style={{ marginTop: '16px', paddingLeft: '16px', borderLeft: '2px solid var(--app-primary)' }}>
                   <label className="form-label">Which product must they buy?</label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input className="form-input" value={localTriggerNames} readOnly placeholder="Click select to choose..." style={{ background: '#fff' }} />
-                    <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select Product</button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {(!localTriggerNames || !localTriggerNames.startsWith('[')) && (
+                        <input className="form-input" value={localTriggerNames} readOnly placeholder="Click select to choose..." style={{ background: '#fff' }} />
+                      )}
+                      <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select Product</button>
+                    </div>
+                    {localTriggerNames && localTriggerNames.startsWith('[') && renderProductCards(localTriggerNames)}
                   </div>
                 </div>
               )}
@@ -281,9 +321,14 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ flex: 2 }}>
                     <label style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Applies to which product?</label>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <input className="form-input" value={localTargetNames} readOnly placeholder="Choose product..." style={{ background: '#f9fafb' }} />
-                      <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        {(!localTargetNames || !localTargetNames.startsWith('[')) && (
+                          <input className="form-input" value={localTargetNames} readOnly placeholder="Choose product..." style={{ background: '#f9fafb' }} />
+                        )}
+                        <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
+                      </div>
+                      {localTargetNames && localTargetNames.startsWith('[') && renderProductCards(localTargetNames)}
                     </div>
                   </div>
                 </div>
