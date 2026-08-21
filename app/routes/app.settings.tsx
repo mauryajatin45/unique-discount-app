@@ -216,8 +216,15 @@ export default function SettingsPage() {
 
   const renderProductCards = (jsonString: string) => {
     let products: any[] = [];
+    if (!jsonString) return null;
+    
     try {
-      products = JSON.parse(jsonString);
+      if (jsonString.startsWith('[')) {
+        products = JSON.parse(jsonString);
+      } else {
+        // Fallback for old comma separated IDs
+        products = jsonString.split(',').map(id => ({ id: id.trim(), title: 'Update in Settings to see title', image: '', needsUpdate: true }));
+      }
       if (!Array.isArray(products)) return null;
     } catch (e) {
       return null;
@@ -227,16 +234,18 @@ export default function SettingsPage() {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-        {products.map(p => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', border: '1px solid #e2e8f0', borderRadius: '6px', background: '#f8fafc' }}>
+        {products.map((p, idx) => (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', border: p.needsUpdate ? '1px dashed #f59e0b' : '1px solid #e2e8f0', borderRadius: '6px', background: p.needsUpdate ? '#fffbeb' : '#f8fafc' }}>
             {p.image ? (
               <img src={p.image} alt={p.title} style={{ width: '32px', height: '32px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
             ) : (
-              <div style={{ width: '32px', height: '32px', background: '#e2e8f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              <div style={{ width: '32px', height: '32px', background: p.needsUpdate ? '#fde68a' : '#e2e8f0', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={p.needsUpdate ? '#b45309' : '#94a3b8'} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               </div>
             )}
-            <span style={{ fontSize: '13px', fontWeight: 500, color: '#334155' }}>{p.title}</span>
+            <span style={{ fontSize: '13px', fontWeight: 500, color: p.needsUpdate ? '#b45309' : '#334155' }}>
+              {p.needsUpdate ? "⚠ Please click 'Select Product' to update" : p.title}
+            </span>
           </div>
         ))}
       </div>
@@ -297,12 +306,9 @@ export default function SettingsPage() {
                   <label className="form-label">Which product must they buy?</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      {(!localTriggerNames || !localTriggerNames.startsWith('[')) && (
-                        <input className="form-input" value={localTriggerNames} readOnly placeholder="Click select to choose..." style={{ background: '#fff' }} />
-                      )}
                       <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('trigger')}>Select Product</button>
                     </div>
-                    {localTriggerNames && localTriggerNames.startsWith('[') && renderProductCards(localTriggerNames)}
+                    {renderProductCards(localTriggerNames)}
                   </div>
                 </div>
               )}
@@ -323,12 +329,9 @@ export default function SettingsPage() {
                     <label style={{ fontSize: '12px', color: 'var(--app-text-muted)' }}>Applies to which product?</label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        {(!localTargetNames || !localTargetNames.startsWith('[')) && (
-                          <input className="form-input" value={localTargetNames} readOnly placeholder="Choose product..." style={{ background: '#f9fafb' }} />
-                        )}
                         <button className="btn-primary" style={{ background: '#374151' }} onClick={() => handleSelectProduct('target')}>Select</button>
                       </div>
-                      {localTargetNames && localTargetNames.startsWith('[') && renderProductCards(localTargetNames)}
+                      {renderProductCards(localTargetNames)}
                     </div>
                   </div>
                 </div>

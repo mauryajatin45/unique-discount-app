@@ -53,7 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (settings.triggerProductTitle && settings.triggerProductTitle.startsWith('[')) {
         triggerProducts = JSON.parse(settings.triggerProductTitle);
       } else if (settings.triggerProductId) {
-        triggerProducts = [{ id: settings.triggerProductId, title: settings.triggerProductId, image: '' }];
+        triggerProducts = settings.triggerProductId.split(',').map(id => ({ id: id.trim(), title: 'Update in Settings to see title', image: '', needsUpdate: true }));
       }
     } catch(e) {}
     
@@ -61,7 +61,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       if (settings.targetProductTitle && settings.targetProductTitle.startsWith('[')) {
         targetProducts = JSON.parse(settings.targetProductTitle);
       } else if (settings.targetProductId) {
-        targetProducts = [{ id: settings.targetProductId, title: settings.targetProductId, image: '' }];
+        targetProducts = settings.targetProductId.split(',').map(id => ({ id: id.trim(), title: 'Update in Settings to see title', image: '', needsUpdate: true }));
       }
     } catch(e) {}
   }
@@ -78,15 +78,17 @@ export default function Dashboard() {
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
         {products.map((p, idx) => (
-          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '4px', background: '#fff' }}>
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 8px', border: p.needsUpdate ? '1px dashed #f59e0b' : '1px solid #e2e8f0', borderRadius: '4px', background: p.needsUpdate ? '#fffbeb' : '#fff' }}>
             {p.image ? (
               <img src={p.image} alt={p.title} style={{ width: '20px', height: '20px', objectFit: 'cover', borderRadius: '2px' }} />
             ) : (
-              <div style={{ width: '20px', height: '20px', background: '#e2e8f0', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              <div style={{ width: '20px', height: '20px', background: p.needsUpdate ? '#fde68a' : '#e2e8f0', borderRadius: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={p.needsUpdate ? '#b45309' : '#94a3b8'} strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
               </div>
             )}
-            <span style={{ fontSize: '12px', fontWeight: 500, color: '#334155', maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+            <span style={{ fontSize: '12px', fontWeight: 500, color: p.needsUpdate ? '#b45309' : '#334155', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.needsUpdate ? "⚠ Re-select in Settings" : p.title}
+            </span>
           </div>
         ))}
       </div>
