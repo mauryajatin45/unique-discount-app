@@ -187,26 +187,24 @@ const worker = new Worker(
       );
       console.log(`Loyalty card generated successfully: ${loyaltyCardUrl}`);
 
-      // Step E: Phase 5 (The Delivery) - Send to BusinessChat.io
-      // We will implement this once we have the API Key and Template ID from the user
-      /*
-      console.log(`Sending WhatsApp message to ${customerPhone} via BusinessChat.io...`);
-      await fetch("https://api.businesschat.io/v1/messages", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": "Bearer YOUR_API_KEY"
-        },
-        body: JSON.stringify({
-          to: customerPhone,
-          template: "YOUR_TEMPLATE_ID",
-          variables: {
-            customer_name: customerName,
-            image_url: loyaltyCardUrl
-          }
-        })
-      });
-      */
+      // Step E: Phase 5 (The Delivery) - Send to BusinessChat.io Webhook
+      console.log(`Sending WhatsApp message trigger to BusinessChat webhook for ${customerPhone}...`);
+      try {
+        const webhookResponse = await fetch("https://kotlin-web-api.businesschat.io/webhook/18613/automations/23090", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            phoneNumber: customerPhone,
+            customerName: customerName,
+            loyaltyCardUrl: loyaltyCardUrl
+          })
+        });
+        console.log(`BusinessChat Webhook Response Status: ${webhookResponse.status}`);
+      } catch (err) {
+        console.error("Failed to trigger BusinessChat Webhook:", err);
+      }
       // Save log to database (Delivery Status removed as per client request, so no need to track it)
       await prisma.log.create({
         data: {
