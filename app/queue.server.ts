@@ -117,9 +117,11 @@ const worker = new Worker(
             code: code1,
             startsAt: new Date().toISOString(),
             endsAt: endsAtISO,
-            customerSelection: {
-              all: true
-            },
+            customerSelection: orderData.customer?.id ? {
+              customers: {
+                add: [`gid://shopify/Customer/${orderData.customer.id}`]
+              }
+            } : { all: true },
             customerGets: {
               value: {
                 percentage: discountPercentageProduct
@@ -163,9 +165,11 @@ const worker = new Worker(
             code: code2,
             startsAt: new Date().toISOString(),
             endsAt: endsAtISO,
-            customerSelection: {
-              all: true
-            },
+            customerSelection: orderData.customer?.id ? {
+              customers: {
+                add: [`gid://shopify/Customer/${orderData.customer.id}`]
+              }
+            } : { all: true },
             customerGets: {
               value: {
                 percentage: discountPercentageStore
