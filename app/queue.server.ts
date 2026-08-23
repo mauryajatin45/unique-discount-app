@@ -23,6 +23,14 @@ const worker = new Worker(
     console.log(`Processing order ${orderId} for shop ${shop}`);
 
     try {
+      // 0. Prevent duplicate processing (Shopify often sends both ORDERS_CREATE and ORDERS_PAID)
+      const existingLog = await prisma.log.findFirst({
+        where: { shop, orderId: String(orderId) }
+      });
+      if (existingLog) {
+        console.log(`Order ${orderId} has already been processed. Skipping to prevent duplicate codes.`);
+        return;
+      }
       // Step A: Fetch settings for the shop
       const settings = await prisma.appSettings.findUnique({
         where: { shop },
