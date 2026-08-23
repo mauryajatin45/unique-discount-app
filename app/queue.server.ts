@@ -70,6 +70,8 @@ const worker = new Worker(
       const endsAtISO = endsAt.toISOString();
 
       const customerName = orderData.customer?.first_name || "Customer";
+      const customerPhone = orderData.customer?.phone || orderData.phone || orderData.billing_address?.phone || orderData.shipping_address?.phone || "";
+      console.log(`[Order ${orderId}] Extracted Customer: ${customerName}, Phone: ${customerPhone}`);
 
       const discountPercentageProduct = parseFloat(settings.discountPercentageProduct?.toString() || "10.0") / 100;
       const discountPercentageStore = parseFloat(settings.discountPercentageStore?.toString() || "15.0") / 100;
