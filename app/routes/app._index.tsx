@@ -1,13 +1,21 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData, useNavigate } from "@remix-run/react";
-import { authenticate } from "../shopify.server";
+import shopify, { authenticate } from "../shopify.server";
 import { requireAppUser } from "../auth.server";
 import prisma from "../db.server";
 import { orderQueue } from "../queue.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session, admin } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const user = await requireAppUser(request, "canViewDashboard");
+
+  // Attempt to dynamically register webhooks if they are missing
+  try {
+    const response = await shopify.registerWebhooks({ session });
+    console.log("Webhook Registration Status:", response);
+  } catch (error) {
+    console.error("Failed to register webhooks:", error);
+  }
 
   if (!user) {
     return { 
