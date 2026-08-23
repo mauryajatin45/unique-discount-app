@@ -13,6 +13,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     // Ignore webhooks without a topic
     if (!topic) return new Response("OK", { status: 200 });
+    
+    console.log(`[SUCCESS] Verified Shopify App Webhook: ${topic} for shop ${shop}`);
 
     switch (topic) {
       case "APP_UNINSTALLED":
@@ -21,6 +23,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
         break;
 
+      case "ORDERS_CREATE":
       case "ORDERS_PAID":
         // Prevent duplicate processing by checking log here or in queue
         await orderQueue.add("processOrder", {
@@ -35,7 +38,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       default:
-        // Ignore other webhooks silently to prevent log spam
+        console.log(`Ignoring unhandled webhook topic: ${topic}`);
         break;
     }
 
