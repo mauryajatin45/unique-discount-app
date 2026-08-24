@@ -8,7 +8,7 @@ RUN npx prisma generate
 RUN npm run build
 
 FROM node:20-alpine
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl fontconfig ttf-dejavu font-noto font-noto-arabic
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/package.json /app/package-lock.json* ./
