@@ -39,7 +39,7 @@ export async function generateLoyaltyCard(
           fill: #000000;
         }
       </style>
-      <text x="1513" y="2922" class="name-text" text-anchor="middle" dominant-baseline="middle">${clientName}</text>
+      <text x="1513" y="2800" class="name-text" text-anchor="middle" dominant-baseline="middle">${clientName}</text>
       <text x="1509" y="3606" class="code-text" text-anchor="middle" dominant-baseline="middle">${kingCode}</text>
       <text x="1503" y="4222" class="code-text" text-anchor="middle" dominant-baseline="middle">${otherCode}</text>
     </svg>
