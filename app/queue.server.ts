@@ -204,22 +204,32 @@ const worker = new Worker(
       // Step E: Phase 5 (The Delivery) - Send to BusinessChat.io Webhook
       console.log(`Sending WhatsApp message trigger to BusinessChat webhook for ${customerPhone}...`);
       try {
+        const payload = {
+          phoneNumber: customerPhone,
+          customerName: customerName,
+          loyaltyCardUrl: loyaltyCardUrl,
+          productCode: code1,
+          storewideCode: code2
+        };
+        console.log(`Webhook Payload:`, JSON.stringify(payload));
+        
         const webhookResponse = await fetch("https://kotlin-web-api.businesschat.io/webhook/18613/automations/23090", {
           method: "POST",
           headers: { 
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            phoneNumber: customerPhone,
-            customerName: customerName,
-            loyaltyCardUrl: loyaltyCardUrl,
-            productCode: code1,
-            storewideCode: code2
-          })
+          body: JSON.stringify(payload)
         });
+        
+        const responseText = await webhookResponse.text();
         console.log(`BusinessChat Webhook Response Status: ${webhookResponse.status}`);
+        console.log(`BusinessChat Webhook Response Body: ${responseText}`);
+        
+        if (!webhookResponse.ok) {
+           console.error(`BusinessChat returned an error: ${responseText}`);
+        }
       } catch (err) {
-        console.error("Failed to trigger BusinessChat Webhook:", err);
+        console.error("Failed to trigger BusinessChat Webhook (Network/Code Error):", err);
       }
       // Save log to database (Delivery Status removed as per client request, so no need to track it)
       await prisma.log.create({
