@@ -212,7 +212,9 @@ const worker = new Worker(
           body: JSON.stringify({
             phoneNumber: customerPhone,
             customerName: customerName,
-            loyaltyCardUrl: loyaltyCardUrl
+            loyaltyCardUrl: loyaltyCardUrl,
+            productCode: code1,
+            storewideCode: code2
           })
         });
         console.log(`BusinessChat Webhook Response Status: ${webhookResponse.status}`);

@@ -18,30 +18,30 @@ export async function generateLoyaltyCard(
     // Ignore if exists
   }
 
-  const templatePath = path.join(publicDir, 'Template.png');
+  const templatePath = path.join(publicDir, 'Template_New.png');
   const outputPath = path.join(cardsDir, `${orderId}.png`);
 
-  // We construct an SVG with exactly the same dimensions as the image (3000x5334)
+  // We construct an SVG with exactly the same dimensions as the new image (941x1672)
   // and use text-anchor: middle to perfectly center text at the given X,Y coordinates.
   const svgOverlay = `
-    <svg width="3000" height="5334" xmlns="http://www.w3.org/2000/svg">
+    <svg width="941" height="1672" xmlns="http://www.w3.org/2000/svg">
       <style>
         .name-text {
           font-family: Arial, sans-serif;
-          font-size: 130px;
+          font-size: 40px;
           font-weight: bold;
-          fill: #000000;
+          fill: #FFFFFF;
         }
         .code-text {
           font-family: Arial, sans-serif;
-          font-size: 110px;
+          font-size: 34px;
           font-weight: bold;
-          fill: #000000;
+          fill: #FFFFFF;
         }
       </style>
-      <text x="1513" y="2800" class="name-text" text-anchor="middle" dominant-baseline="middle">${clientName}</text>
-      <text x="1509" y="3606" class="code-text" text-anchor="middle" dominant-baseline="middle">${kingCode}</text>
-      <text x="1503" y="4222" class="code-text" text-anchor="middle" dominant-baseline="middle">${otherCode}</text>
+      <text x="466" y="880" class="name-text" text-anchor="middle" dominant-baseline="middle">${clientName}</text>
+      <text x="460" y="1133" class="code-text" text-anchor="middle" dominant-baseline="middle">${kingCode}</text>
+      <text x="452" y="1324" class="code-text" text-anchor="middle" dominant-baseline="middle">${otherCode}</text>
     </svg>
   `;
 
