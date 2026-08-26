@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import sharp from 'sharp';
+import { PDFDocument } from 'pdf-lib';
 
 export async function generateLoyaltyCard(
   orderId: string,
@@ -18,7 +19,7 @@ export async function generateLoyaltyCard(
     // Ignore if exists
   }
 
-  const outputPath = path.join(cardsDir, `${orderId}.png`);
+  const outputPath = path.join(cardsDir, `${orderId}.pdf`);
 
   // WhatsApp header image requirement: 1125x600 (16:9 landscape, ~1.91:1 ratio, max 5MB)
   // Generated entirely via SVG — no external template file dependency
@@ -73,11 +74,26 @@ export async function generateLoyaltyCard(
 </svg>
 `;
 
-  await sharp(Buffer.from(svgCard))
-    .png()
-    .toFile(outputPath);
+  // Render to PNG buffer
+  const pngBuffer = await sharp(Buffer.from(svgCard)).png().toBuffer();
 
-  // Return the public URL for the image
+  // Embed PNG into PDF
+  const pdfDoc = await PDFDocument.create();
+  const pngImage = await pdfDoc.embedPng(pngBuffer);
+  const pngDims = pngImage.scale(1);
+
+  const page = pdfDoc.addPage([pngDims.width, pngDims.height]);
+  page.drawImage(pngImage, {
+    x: 0,
+    y: 0,
+    width: pngDims.width,
+    height: pngDims.height
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  await fs.writeFile(outputPath, pdfBytes);
+
+  // Return the public URL for the PDF
   const appUrl = process.env.SHOPIFY_APP_URL || '';
-  return `${appUrl}/cards/${orderId}.png`;
+  return `${appUrl}/cards/${orderId}.pdf`;
 }
