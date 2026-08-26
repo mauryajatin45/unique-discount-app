@@ -21,61 +21,43 @@ export async function generateLoyaltyCard(
 
   const outputPath = path.join(cardsDir, `${orderId}.pdf`);
 
-  // WhatsApp header image requirement: 1125x600 (16:9 landscape, ~1.91:1 ratio, max 5MB)
-  // Generated entirely via SVG — no external template file dependency
-  const svgCard = `
-<svg width="1125" height="600" xmlns="http://www.w3.org/2000/svg">
-  <!-- Black background -->
-  <rect width="1125" height="600" fill="#0D0D0D"/>
+  const templatePath = path.join(publicDir, 'Template_New.png');
 
-  <!-- Gold outer border -->
-  <rect x="10" y="10" width="1105" height="580" fill="none" stroke="#C9A84C" stroke-width="4" rx="12"/>
-
-  <!-- Top dark bar -->
-  <rect x="14" y="14" width="1097" height="110" fill="#1A1A1A" rx="10"/>
-
-  <!-- Brand name (Arabic) -->
-  <text x="562" y="75" font-family="Arial, sans-serif" font-size="38" font-weight="bold" fill="#C9A84C" text-anchor="middle" dominant-baseline="middle">مناحل الثنيان</text>
-
-  <!-- Gold divider line -->
-  <line x1="60" y1="130" x2="1065" y2="130" stroke="#C9A84C" stroke-width="2"/>
-
-  <!-- VIP badge box (left side) -->
-  <rect x="40" y="155" width="200" height="200" fill="#1A1A1A" rx="14" stroke="#C9A84C" stroke-width="2"/>
-  <text x="140" y="230" font-family="Arial, sans-serif" font-size="52" fill="#C9A84C" text-anchor="middle" dominant-baseline="middle">👑</text>
-  <text x="140" y="290" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#C9A84C" text-anchor="middle">VIP</text>
-  <text x="140" y="320" font-family="Arial, sans-serif" font-size="15" fill="#AAAAAA" text-anchor="middle">Gold Member</text>
-
-  <!-- Customer name label -->
-  <text x="660" y="175" font-family="Arial, sans-serif" font-size="17" fill="#888888" text-anchor="middle">اسم العميل</text>
-  <!-- Customer name value -->
-  <text x="660" y="225" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="#FFFFFF" text-anchor="middle">${clientName}</text>
-
-  <!-- Thin separator -->
-  <line x1="290" y1="250" x2="1080" y2="250" stroke="#2A2A2A" stroke-width="1"/>
-
-  <!-- Product code box -->
-  <text x="460" y="278" font-family="Arial, sans-serif" font-size="14" fill="#888888" text-anchor="middle">كود خلطة الملوك</text>
-  <rect x="300" y="290" width="320" height="58" fill="#1A1A1A" rx="8" stroke="#C9A84C" stroke-width="1.5"/>
-  <text x="460" y="326" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#C9A84C" text-anchor="middle">${kingCode}</text>
-
-  <!-- Storewide code box -->
-  <text x="845" y="278" font-family="Arial, sans-serif" font-size="14" fill="#888888" text-anchor="middle">كود باقي المنتجات</text>
-  <rect x="695" y="290" width="320" height="58" fill="#1A1A1A" rx="8" stroke="#C9A84C" stroke-width="1.5"/>
-  <text x="855" y="326" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#C9A84C" text-anchor="middle">${otherCode}</text>
-
-  <!-- Bottom bar -->
-  <rect x="14" y="476" width="1097" height="110" fill="#1A1A1A" rx="10"/>
-  <rect x="14" y="476" width="1097" height="30" fill="#1A1A1A"/>
-
-  <!-- Bottom message (Arabic) -->
-  <text x="562" y="522" font-family="Arial, sans-serif" font-size="22" font-weight="bold" fill="#C9A84C" text-anchor="middle">نشكرك لإنضمامك لعضوية الولاء الذهبية</text>
-  <text x="562" y="560" font-family="Arial, sans-serif" font-size="15" fill="#777777" text-anchor="middle">عضوية الولاء الذهبية — مناحل الثنيان</text>
-</svg>
-`;
+  // We construct an SVG with exactly the same dimensions as the new image (941x1672)
+  // and use text-anchor: middle to perfectly center text at the given X,Y coordinates.
+  const svgOverlay = `
+    <svg width="941" height="1672" xmlns="http://www.w3.org/2000/svg">
+      <style>
+        .name-text {
+          font-family: Arial, sans-serif;
+          font-size: 40px;
+          font-weight: bold;
+          fill: #FFFFFF;
+        }
+        .code-text {
+          font-family: Arial, sans-serif;
+          font-size: 34px;
+          font-weight: bold;
+          fill: #FFFFFF;
+        }
+      </style>
+      <text x="466" y="855" class="name-text" text-anchor="middle" dominant-baseline="middle">${clientName}</text>
+      <text x="475" y="1133" class="code-text" text-anchor="middle" dominant-baseline="middle">${kingCode}</text>
+      <text x="475" y="1324" class="code-text" text-anchor="middle" dominant-baseline="middle">${otherCode}</text>
+    </svg>
+  `;
 
   // Render to PNG buffer
-  const pngBuffer = await sharp(Buffer.from(svgCard)).png().toBuffer();
+  const pngBuffer = await sharp(templatePath)
+    .composite([
+      {
+        input: Buffer.from(svgOverlay),
+        top: 0,
+        left: 0,
+      },
+    ])
+    .png()
+    .toBuffer();
 
   // Embed PNG into PDF
   const pdfDoc = await PDFDocument.create();
