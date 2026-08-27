@@ -54,52 +54,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const endDate = new Date(endDateStr);
     
     // Fetch orders via GraphQL
-    const response = await admin.graphql(`
-      query fetchOrders($query: String!) {
-        orders(first: 250, query: $query) {
-          edges {
-            node {
-              id
-              legacyResourceId
-              lineItems(first: 50) {
-                edges {
-                  node {
-                    product {
-                      id
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    `, {
-      variables: {
-        query: `created_at:>=${startDate.toISOString()} AND created_at:<=${endDate.toISOString()}`
+    
+    const response = await admin.rest.get({
+      path: 'orders.json',
+      query: {
+        created_at_min: startDate.toISOString(),
+        created_at_max: endDate.toISOString(),
+        status: 'any',
+        limit: '250'
       }
     });
     
     const data = await response.json();
-    if (data.errors) {
-       console.error("GraphQL Errors:", data.errors);
+    if (!data || !data.orders) {
+       console.error("REST Error fetching orders");
        return json({ error: "Error fetching orders" }, { status: 500 });
     }
     
-    const orders = data.data.orders.edges;
+    const orders = data.orders;
     const eligibleOrderIds = [];
     
-    for (const edge of orders) {
-      const order = edge.node;
+    for (const order of orders) {
       let hasProduct = false;
-      for (const lineItem of order.lineItems.edges) {
-         if (lineItem.node.product?.id === `gid://shopify/Product/${productId}`) {
+      for (const lineItem of order.line_items) {
+         if (String(lineItem.product_id) === String(productId)) {
             hasProduct = true;
             break;
          }
       }
       if (hasProduct) {
-        eligibleOrderIds.push(order.legacyResourceId);
+        eligibleOrderIds.push(String(order.id));
       }
     }
     
