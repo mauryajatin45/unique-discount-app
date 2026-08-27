@@ -55,16 +55,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // Fetch orders via GraphQL
     
-    const response = await admin.rest.get({
-      path: 'orders.json',
-      query: {
-        created_at_min: startDate.toISOString(),
-        created_at_max: endDate.toISOString(),
-        status: 'any',
-        limit: '250'
+    
+    const response = await fetch(`https://${shop}/admin/api/2024-01/orders.json?created_at_min=${startDate.toISOString()}&created_at_max=${endDate.toISOString()}&status=any&limit=250`, {
+      headers: {
+        'X-Shopify-Access-Token': session.accessToken
       }
     });
-    
     const data = await response.json();
     if (!data || !data.orders) {
        console.error("REST Error fetching orders");

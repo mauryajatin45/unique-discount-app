@@ -291,11 +291,13 @@ const backfillWorker = new Worker(
     console.log(`[Backfill] Processing order ${orderId} for run ${runId}`);
     
     try {
-      const { admin } = await shopify.unauthenticated.admin(shop);
       
-      // Fetch REST order to match webhook payload shape
-      const response = await admin.rest.get({
-        path: `orders/${orderId}.json`
+      const { session } = await shopify.unauthenticated.admin(shop);
+      
+      const response = await fetch(`https://${shop}/admin/api/2024-01/orders/${orderId}.json`, {
+        headers: {
+          'X-Shopify-Access-Token': session.accessToken
+        }
       });
       const orderData = await response.json();
       
