@@ -278,3 +278,70 @@ worker.on("completed", (job) => {
 worker.on("failed", (job, err) => {
   console.log(`Job ${job?.id} failed with ${err.message}`);
 });
+
+
+export const backfillQueue = new Queue("backfillQueue", {
+  connection: redisConnection
+});
+
+const backfillWorker = new Worker(
+  "backfillQueue",
+  async (job) => {
+    const { shop, orderId, runId, itemId } = job.data;
+    console.log(`[Backfill] Processing order ${orderId} for run ${runId}`);
+    
+    try {
+      const { admin } = await shopify.unauthenticated.admin(shop);
+      
+      // Fetch REST order to match webhook payload shape
+      const response = await admin.rest.get({
+        path: `orders/${orderId}.json`
+      });
+      const orderData = await response.json();
+      
+      if (!orderData || !orderData.order) {
+         throw new Error("Order not found");
+      }
+      
+      // Enqueue to normal order queue
+      await orderQueue.add("processOrder", {
+        shop,
+        orderId,
+        orderData: orderData.order,
+      });
+      
+      await prisma.backfillItem.update({
+        where: { id: itemId },
+        data: { status: "SENT" }
+      });
+      
+      await prisma.backfillRun.update({
+        where: { id: runId },
+        data: { totalSent: { increment: 1 } }
+      });
+      
+    } catch (err) {
+      console.error(`[Backfill] Error for order ${orderId}:`, err);
+      
+      await prisma.backfillItem.update({
+        where: { id: itemId },
+        data: { status: "FAILED", errorMessage: err.message }
+      });
+      
+      await prisma.backfillRun.update({
+        where: { id: runId },
+        data: { totalFailed: { increment: 1 } }
+      });
+      
+      throw err;
+    }
+  },
+  { connection: redisConnection }
+);
+
+backfillWorker.on("completed", (job) => {
+  console.log(`[Backfill] Job ${job.id} completed`);
+});
+backfillWorker.on("failed", (job, err) => {
+  console.error(`[Backfill] Job ${job.id} failed: ${err.message}`);
+});

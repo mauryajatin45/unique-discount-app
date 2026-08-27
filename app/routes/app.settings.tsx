@@ -41,6 +41,120 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
+  if (intent === "previewBackfill" || intent === "runBackfill") {
+    const productId = formData.get("productId")?.toString() || "";
+    const startDateStr = formData.get("startDate")?.toString() || "";
+    const endDateStr = formData.get("endDate")?.toString() || "";
+    
+    if (!productId || !startDateStr || !endDateStr) {
+      return json({ error: "Missing required fields" }, { status: 400 });
+    }
+    
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    
+    // Fetch orders via GraphQL
+    const response = await admin.graphql(`
+      query fetchOrders($query: String!) {
+        orders(first: 250, query: $query) {
+          edges {
+            node {
+              id
+              legacyResourceId
+              lineItems(first: 50) {
+                edges {
+                  node {
+                    product {
+                      id
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `, {
+      variables: {
+        query: `created_at:>=${startDate.toISOString()} AND created_at:<=${endDate.toISOString()}`
+      }
+    });
+    
+    const data = await response.json();
+    if (data.errors) {
+       console.error("GraphQL Errors:", data.errors);
+       return json({ error: "Error fetching orders" }, { status: 500 });
+    }
+    
+    const orders = data.data.orders.edges;
+    const eligibleOrderIds = [];
+    
+    for (const edge of orders) {
+      const order = edge.node;
+      let hasProduct = false;
+      for (const lineItem of order.lineItems.edges) {
+         if (lineItem.node.product?.id === `gid://shopify/Product/${productId}`) {
+            hasProduct = true;
+            break;
+         }
+      }
+      if (hasProduct) {
+        eligibleOrderIds.push(order.legacyResourceId);
+      }
+    }
+    
+    // Check against Log table
+    const existingLogs = await prisma.log.findMany({
+      where: {
+        shop,
+        orderId: { in: eligibleOrderIds }
+      },
+      select: { orderId: true }
+    });
+    
+    const skippedSet = new Set(existingLogs.map(l => l.orderId));
+    let totalFound = eligibleOrderIds.length;
+    let totalSkipped = skippedSet.size;
+    let totalPending = totalFound - totalSkipped;
+    const pendingOrderIds = eligibleOrderIds.filter(id => !skippedSet.has(id));
+    
+    if (intent === "previewBackfill") {
+      return json({
+        previewData: {
+          productId, startDate: startDateStr, endDate: endDateStr,
+          totalFound, totalSkipped, totalPending, pendingOrderIds
+        }
+      });
+    }
+    
+    if (intent === "runBackfill") {
+      const run = await prisma.backfillRun.create({
+        data: {
+          shop, productId, startDate, endDate, status: "RUNNING",
+          totalFound, totalSkipped
+        }
+      });
+      
+      const { backfillQueue } = await import('../queue.server');
+      
+      for (const orderId of pendingOrderIds) {
+        const item = await prisma.backfillItem.create({
+          data: { backfillRunId: run.id, orderId, status: "PENDING" }
+        });
+        
+        await backfillQueue.add("processBackfillOrder", {
+          shop,
+          orderId,
+          runId: run.id,
+          itemId: item.id
+        });
+      }
+      
+      return json({ backfillSuccess: true });
+    }
+  }
+  
+
   if (intent === "save_settings") {
     const isActive = formData.get("isActive") === "true";
     const triggerMode = formData.get("triggerMode")?.toString() || "ALL_PRODUCTS";
@@ -456,7 +570,77 @@ export default function SettingsPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      
+        {/* BACKFILL SECTION */}
+        <h2 style={{ fontSize: '18px', fontWeight: 600, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', marginTop: '48px' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path></svg>
+          Discount Automation Backfill
+        </h2>
+        <p style={{ color: 'var(--app-text-muted)', marginBottom: '24px', fontSize: '14px', maxWidth: '600px', lineHeight: 1.5 }}>
+          Run a one-time backfill for customers who purchased an eligible product before the automation was enabled. This process is idempotent and will skip users who already received a code.
+        </p>
+
+        <div style={{ background: '#f9fafb', padding: '24px', borderRadius: '12px', border: '1px solid var(--app-border)', marginBottom: '48px' }}>
+          <fetcher.Form method="post">
+            <input type="hidden" name="intent" value="previewBackfill" />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Product ID</label>
+                <input className="form-input" type="text" name="productId" placeholder="e.g. 9624214438144" required />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}></div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Timeframe Start</label>
+                <input className="form-input" type="datetime-local" name="startDate" required />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label">Timeframe End</label>
+                <input className="form-input" type="datetime-local" name="endDate" required />
+              </div>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <button type="submit" className="btn-secondary" style={{ padding: '8px 24px' }} disabled={fetcher.state !== "idle"}>
+                {fetcher.state !== "idle" ? "Loading..." : "Preview Customers"}
+              </button>
+            </div>
+          </fetcher.Form>
+          
+          {fetcher.data?.previewData && (
+            <div style={{ marginTop: '24px', padding: '16px', background: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '15px' }}>Preview Results</h4>
+              <ul style={{ margin: '0 0 24px 0', paddingLeft: '20px', color: '#4b5563', lineHeight: 1.6 }}>
+                <li><strong>Eligible purchases found:</strong> {fetcher.data.previewData.totalFound}</li>
+                <li><strong>Already notified (skipping):</strong> {fetcher.data.previewData.totalSkipped}</li>
+                <li><strong>Pending notifications:</strong> {fetcher.data.previewData.totalPending}</li>
+              </ul>
+              
+              {fetcher.data.previewData.totalPending > 0 ? (
+                <fetcher.Form method="post">
+                  <input type="hidden" name="intent" value="runBackfill" />
+                  <input type="hidden" name="productId" value={fetcher.data.previewData.productId} />
+                  <input type="hidden" name="startDate" value={fetcher.data.previewData.startDate} />
+                  <input type="hidden" name="endDate" value={fetcher.data.previewData.endDate} />
+                  <button type="submit" className="btn-primary" style={{ padding: '8px 24px', background: '#2563eb' }} disabled={fetcher.state !== "idle"} onClick={(e) => {
+                    if (!confirm(`You are about to send the discount message to ${fetcher.data.previewData.totalPending} customers. Continue?`)) e.preventDefault();
+                  }}>
+                    Run Backfill Now
+                  </button>
+                </fetcher.Form>
+              ) : (
+                <p style={{ color: '#10b981', fontWeight: 600, margin: 0 }}>All eligible customers have already been processed!</p>
+              )}
+            </div>
+          )}
+          
+          {fetcher.data?.backfillSuccess && (
+            <div style={{ marginTop: '24px', padding: '16px', background: '#ecfdf5', border: '1px solid #10b981', borderRadius: '8px', color: '#065f46' }}>
+              <p style={{ margin: 0, fontWeight: 500 }}>✅ Backfill successfully queued!</p>
+              <p style={{ margin: '8px 0 0 0', fontSize: '14px' }}>The background processor is now handling the queued orders. Check the Logs page for delivery status.</p>
+            </div>
+          )}
+        </div>
+  </div>
     </div>
   );
 }
