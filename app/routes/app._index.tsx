@@ -192,7 +192,7 @@ export default function Dashboard() {
             {activeJobs.map(job => (
               <div key={job.id} style={{ background: job.status === 'active' ? '#dbeafe' : '#f1f5f9', padding: '8px 12px', borderRadius: '6px', fontSize: '13px', fontWeight: 500, color: job.status === 'active' ? '#1e40af' : '#475569', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {job.status === 'active' ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg> : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>}
-                Order #{job.orderId}
+                {job.orderId.startsWith("ODOO-") ? "Odoo #" : "Shopify #"}{job.orderId.replace("ODOO-", "")}
               </div>
             ))}
           </div>
@@ -206,6 +206,7 @@ export default function Dashboard() {
           <table className="custom-table">
             <thead>
               <tr>
+                <th>Source</th>
                 <th>Order ID</th>
                 <th>Customer Name</th>
                 <th>Product Code</th>
@@ -217,7 +218,14 @@ export default function Dashboard() {
               {recentLogs.length > 0 ? (
                 recentLogs.map((log) => (
                   <tr key={log.id}>
-                    <td>#{log.orderId}</td>
+                    <td>
+                      {log.orderId.startsWith('ODOO-') ? (
+                        <span className="badge" style={{ backgroundColor: '#e9d5ff', color: '#7e22ce' }}>Odoo</span>
+                      ) : (
+                        <span className="badge" style={{ backgroundColor: '#dcfce3', color: '#166534' }}>Shopify</span>
+                      )}
+                    </td>
+                    <td>#{log.orderId.replace('ODOO-', '')}</td>
                     <td style={{ fontWeight: 500 }}>{log.customerName || 'N/A'}</td>
                     <td><span className="badge badge-neutral">{log.productCode}</span></td>
                     <td><span className="badge badge-neutral">{log.storewideCode}</span></td>
@@ -228,7 +236,7 @@ export default function Dashboard() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '48px', color: 'var(--app-text-muted)' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--app-text-muted)' }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: '12px' }}><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
                     <p style={{ margin: 0 }}>No automated discounts generated yet.</p>
                   </td>
