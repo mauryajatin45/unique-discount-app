@@ -41,7 +41,7 @@ const worker = new Worker(
         return;
       }
       
-      if (isOdooOrder && !settings.isOdooActive) {
+      if (isOdooOrder && settings.isOdooActive === false) {
         console.log(`Odoo integration is paused for shop ${shop}. Skipping Odoo order ${orderId}.`);
         return;
       }
