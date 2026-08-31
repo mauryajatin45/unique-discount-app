@@ -19,7 +19,7 @@ export const orderQueue = new Queue("orderQueue", {
 const worker = new Worker(
   "orderQueue",
   async (job: Job) => {
-    const { shop, orderId, orderData } = job.data;
+    const { shop, orderId, orderData, isOdooOrder } = job.data;
     console.log(`Processing order ${orderId} for shop ${shop}`);
 
     try {
@@ -59,10 +59,21 @@ const worker = new Worker(
           console.log(`Specific product trigger selected but no trigger product configured for ${shop}. Skipping.`);
           return;
         }
-        const triggerProductIds = triggerProductIdStr.split(',');
-        const hasTriggerProduct = lineItems.some(
-          (item: any) => triggerProductIds.includes(`gid://shopify/Product/${item.product_id}`)
-        );
+        
+        let hasTriggerProduct = false;
+        
+        if (isOdooOrder) {
+          // For Odoo orders, we assume the webhook was triggered correctly by Odoo automation rules 
+          // or we bypass the strict Shopify GraphQL ID check because Odoo doesn't use Shopify IDs.
+          hasTriggerProduct = true;
+          console.log(`[Odoo] Bypassing Shopify specific product check for order ${orderId}`);
+        } else {
+          const triggerProductIds = triggerProductIdStr.split(',');
+          hasTriggerProduct = lineItems.some(
+            (item: any) => triggerProductIds.includes(`gid://shopify/Product/${item.product_id}`)
+          );
+        }
+        
         if (!hasTriggerProduct) {
           console.log(`Order ${orderId} does not contain trigger product. Skipping.`);
           return;
