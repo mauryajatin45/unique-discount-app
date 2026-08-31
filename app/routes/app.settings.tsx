@@ -243,6 +243,8 @@ export default function SettingsPage() {
       {
         intent: "save_settings",
         isActive: isActive.toString(),
+        isOdooActive: isOdooActive.toString(),
+        odooTriggerProductId: odooTriggerProductId || "",
         triggerMode,
         triggerProductId: triggerProductId || "",
         triggerProductTitle: localTriggerNames || "",
