@@ -37,6 +37,7 @@ model AppSettings {
   id                     Int      @id @default(1)
   shop                   String   @unique
   isActive               Boolean  @default(false)
+  isOdooActive           Boolean  @default(true)
   triggerMode            String   @default("ALL_PRODUCTS")
   triggerProductId       String?  @db.Text
   targetProductId        String?  @db.Text

@@ -137,6 +137,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "save_settings") {
     const isActive = formData.get("isActive") === "true";
+    const isOdooActive = formData.get("isOdooActive") === "true";
     const triggerMode = formData.get("triggerMode")?.toString() || "ALL_PRODUCTS";
     const triggerProductId = formData.get("triggerProductId")?.toString();
     const triggerProductTitle = formData.get("triggerProductTitle")?.toString();
@@ -148,7 +149,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     await prisma.appSettings.update({
       where: { shop },
-      data: { isActive, triggerMode, triggerProductId, triggerProductTitle, targetProductId, targetProductTitle, discountPercentageProduct, discountPercentageStore, logRetentionDays }
+      data: { isActive,
+        isOdooActive, triggerMode, triggerProductId, triggerProductTitle, targetProductId, targetProductTitle, discountPercentageProduct, discountPercentageStore, logRetentionDays }
     });
     return json({ success: true, message: "Settings saved" });
   }
@@ -196,6 +198,7 @@ export default function SettingsPage() {
   const shopify = useAppBridge();
 
   const [isActive, setIsActive] = useState(settings.isActive);
+  const [isOdooActive, setIsOdooActive] = useState(settings.isOdooActive ?? true);
   const [triggerMode, setTriggerMode] = useState(settings.triggerMode || "ALL_PRODUCTS");
   const [triggerProductId, setTriggerProductId] = useState(settings.triggerProductId || "");
   const [targetProductId, setTargetProductId] = useState(settings.targetProductId || "");
@@ -446,7 +449,20 @@ export default function SettingsPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
               System Preferences
             </h2>
-            <div className="form-group">
+            
+            <div className="form-group" style={{ marginTop: '24px', background: isOdooActive ? '#faf5ff' : '#f8fafc', padding: '24px', borderRadius: '12px', border: `1px solid ${isOdooActive ? '#d8b4fe' : '#e2e8f0'}` }}>
+              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px', color: '#6b21a8' }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                Odoo API Integration
+              </h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ margin: 0, fontSize: '14px', color: 'var(--app-text-muted)', flex: 1 }}>Allow the system to automatically generate discounts for manual Odoo sales orders received via webhook.</p>
+                <button className="btn-primary" style={{ background: isOdooActive ? '#9333ea' : '#64748b', padding: '8px 16px', fontSize: '14px' }} onClick={() => setIsOdooActive(!isOdooActive)}>
+                  {isOdooActive ? "Active" : "Paused"}
+                </button>
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '24px' }}>
               <label className="form-label">Log Retention (Days)</label>
               <input className="form-input" type="number" value={logRetentionDays} onChange={(e) => setLogRetentionDays(e.target.value)} />
               <p style={{ fontSize: '13px', color: 'var(--app-text-muted)', marginTop: '8px', lineHeight: 1.4 }}>

@@ -40,6 +40,11 @@ const worker = new Worker(
         console.log(`Offer not active for shop ${shop}. Skipping.`);
         return;
       }
+      
+      if (isOdooOrder && !settings.isOdooActive) {
+        console.log(`Odoo integration is paused for shop ${shop}. Skipping Odoo order ${orderId}.`);
+        return;
+      }
 
       // Target product to apply discount to
       const targetProductId = settings.targetProductId;
