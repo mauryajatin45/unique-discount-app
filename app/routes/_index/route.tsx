@@ -13,7 +13,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
-  return { showForm: Boolean(login) };
+  // Automatically redirect to the specific store's login flow
+  throw redirect(`/auth/login?shop=althenayanhoney.myshopify.com`);
 };
 
 export default function App() {
