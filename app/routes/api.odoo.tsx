@@ -29,6 +29,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // }
     
     // Extract Order ID (Odoo native webhook sends "name" for the SO reference)
+    
+    const displayName = body.display_name || body.name || "";
+    if (displayName.toUpperCase().includes("SHOPIFY")) {
+      console.log(`[Odoo Webhook] Rejected payload because it is a Shopify-synced order: ${displayName}`);
+      return json({ success: true, message: "Ignored Shopify-synced order" });
+    }
+  
     const orderId = body.order_id || body.name || body.id || `ODOO-${Date.now()}`;
     
     // Extract Customer Name (Odoo native sends partner_id as [ID, "Name"])
