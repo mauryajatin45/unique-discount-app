@@ -155,7 +155,7 @@ const worker = new Worker(
                 }
               }
             },
-            appliesOncePerCustomer: true,
+            
             usageLimit: 1
           }
         }
@@ -201,7 +201,7 @@ const worker = new Worker(
                 all: true
               }
             },
-            appliesOncePerCustomer: true,
+            
             usageLimit: 1
           }
         }
