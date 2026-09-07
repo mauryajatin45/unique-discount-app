@@ -72,17 +72,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       
       allOrders = allOrders.concat(data.orders);
       
-      // Check for pagination Link header
+      // Check for pagination Link header (Fixed Regex)
       const linkHeader = response.headers.get('link');
-      if (linkHeader && linkHeader.includes('rel="next"')) {
-        const links = linkHeader.split(', ');
-        const nextLink = links.find(link => link.includes('rel="next"'));
-        if (nextLink) {
-          const match = nextLink.match(/<(.*?)>/);
-          url = match ? match[1] : null;
-        } else {
-          url = null;
-        }
+      if (linkHeader) {
+        const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+        url = nextMatch ? nextMatch[1] : null;
       } else {
         url = null;
       }
