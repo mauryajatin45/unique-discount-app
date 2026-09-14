@@ -240,7 +240,9 @@ const worker = new Worker(
         };
         console.log(`Webhook Payload:`, JSON.stringify(payload));
         
-        const webhookResponse = await fetch("https://kotlin-web-api.businesschat.io/webhook/18613/automations/23112", {
+        // Use dynamic webhook URL from .env, fallback to Store 1's original webhook URL
+        const webhookUrl = process.env.BUSINESSCHAT_WEBHOOK_URL || "https://kotlin-web-api.businesschat.io/webhook/18613/automations/23112";
+        const webhookResponse = await fetch(webhookUrl, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json"
