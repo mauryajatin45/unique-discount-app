@@ -20,12 +20,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   const shop = session.shop;
 
-  let settings = await prisma.appSettings.findUnique({ where: { shop } });
-  if (!settings) {
-    settings = await prisma.appSettings.create({
-      data: { shop, isActive: false, logRetentionDays: 30 }
-    });
-  }
+  let settings = await prisma.appSettings.upsert({
+    where: { shop },
+    update: {},
+    create: { shop, isActive: false, logRetentionDays: 30 }
+  });
 
   const users = await prisma.appUser.findMany({ 
     where: { shop },
