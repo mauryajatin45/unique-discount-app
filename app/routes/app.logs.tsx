@@ -68,7 +68,7 @@ export default function LogsPage() {
                       )}
                     </td>
                     <td style={{ fontWeight: 600, color: 'var(--app-primary)' }}>
-                      #{log.orderId.replace('ODOO-', '')}
+                      {log.orderName || (log.orderId.startsWith('ODOO-') ? '#' + log.orderId.replace('ODOO-', '') : '#' + log.orderId)}
                     </td>
                     <td style={{ fontWeight: 500 }}>{log.customerName || 'N/A'}</td>
                     <td>

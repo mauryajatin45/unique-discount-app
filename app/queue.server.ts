@@ -265,6 +265,7 @@ const worker = new Worker(
         data: {
           shop,
           orderId: String(orderId),
+          orderName: orderData.name || String(orderId),
           customerName,
           productCode: code1,
           storewideCode: code2,
