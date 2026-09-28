@@ -56,6 +56,7 @@ model Log {
   orderId         String
   orderName       String?
   customerName    String?
+  customerPhone   String?
   productCode     String?
   storewideCode   String?
   

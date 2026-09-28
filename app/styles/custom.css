@@ -251,8 +251,96 @@ body {
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s;
 }
 
 .btn-primary:hover {
   background: var(--app-primary-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Generic button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+  color: var(--app-text);
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Custom input for search & select */
+.custom-input {
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  background: var(--app-surface);
+  color: var(--app-text);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none;
+}
+
+.custom-input:focus {
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.custom-input::placeholder {
+  color: #9ca3af;
+}
+
+/* Resend button */
+.btn-resend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid #fbbf24;
+  background: #fef3c7;
+  color: #92400e;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.btn-resend:hover {
+  background: #fde68a;
+  border-color: #f59e0b;
+}
+
+.btn-resend:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-resend.sent {
+  border-color: #86efac;
+  background: #dcfce7;
+  color: #166534;
+  cursor: default;
 }

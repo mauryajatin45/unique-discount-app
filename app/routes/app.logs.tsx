@@ -1,6 +1,7 @@
-import type { LoaderFunctionArgs} from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, Form, useNavigation } from "@remix-run/react";
+import { useState, useCallback } from "react";
 import { authenticate } from "../shopify.server";
 import { requireAppUser } from "../auth.server";
 import prisma from "../db.server";
@@ -15,25 +16,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const shop = session.shop;
   const url = new URL(request.url);
-  
+
   const q = url.searchParams.get("q") || "";
   const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
   const sort = url.searchParams.get("sort") || "createdAt_desc";
   const limit = 50;
   const skip = (page - 1) * limit;
 
-  // Validate sort parameter to prevent injection
+  // Validate sort parameter
   const validSortFields = ["createdAt", "orderId"];
   const validSortOrders = ["asc", "desc"];
   const [sortFieldRaw, sortOrderRaw] = sort.split("_");
-  
+
   const sortField = validSortFields.includes(sortFieldRaw) ? sortFieldRaw : "createdAt";
   const sortOrder = validSortOrders.includes(sortOrderRaw) ? sortOrderRaw : "desc";
   const orderBy = { [sortField]: sortOrder };
 
-  // Building the where clause
+  // Build where clause
   const where: any = { shop };
-  
+
   if (q) {
     where.OR = [
       { orderName: { contains: q } },
@@ -56,13 +57,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const totalPages = Math.ceil(totalCount / limit) || 1;
 
-  return json({ 
-    logs, 
-    totalPages, 
-    currentPage: page, 
-    q, 
-    sort: `${sortField}_${sortOrder}`, 
-    totalCount 
+  return json({
+    logs,
+    totalPages,
+    currentPage: page,
+    q,
+    sort: `${sortField}_${sortOrder}`,
+    totalCount
   });
 };
 
@@ -72,6 +73,9 @@ export default function LogsPage() {
   const navigation = useNavigation();
   const isSearching = navigation.state === "loading";
 
+  // Track resend status per log id
+  const [resendStatus, setResendStatus] = useState<Record<number, "idle" | "sending" | "sent" | "error">>({});
+
   const handlePageChange = (newPage: number) => {
     const params = new URLSearchParams();
     if (q) params.set("q", q);
@@ -80,9 +84,86 @@ export default function LogsPage() {
     submit(params, { method: "get" });
   };
 
+  const handleResend = useCallback(async (logId: number) => {
+    setResendStatus((prev) => ({ ...prev, [logId]: "sending" }));
+    try {
+      const response = await fetch("/api/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ logId })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setResendStatus((prev) => ({ ...prev, [logId]: "sent" }));
+      } else {
+        console.error("[Resend] Failed:", data.error);
+        setResendStatus((prev) => ({ ...prev, [logId]: "error" }));
+        // Reset after 3 seconds so user can retry
+        setTimeout(() => setResendStatus((prev) => ({ ...prev, [logId]: "idle" })), 3000);
+      }
+    } catch (err) {
+      console.error("[Resend] Network error:", err);
+      setResendStatus((prev) => ({ ...prev, [logId]: "error" }));
+      setTimeout(() => setResendStatus((prev) => ({ ...prev, [logId]: "idle" })), 3000);
+    }
+  }, []);
+
+  const getResendButton = (log: any) => {
+    // Only show resend if log has a phone number
+    if (!log.customerPhone) return null;
+
+    const status = resendStatus[log.id] || "idle";
+
+    if (status === "sent") {
+      return (
+        <button className="btn-resend sent" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          Sent
+        </button>
+      );
+    }
+
+    if (status === "sending") {
+      return (
+        <button className="btn-resend" disabled>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: "spin 1s linear infinite" }}>
+            <path d="M21 12a9 9 0 11-6.219-8.56"></path>
+          </svg>
+          Sending...
+        </button>
+      );
+    }
+
+    if (status === "error") {
+      return (
+        <button className="btn-resend" style={{ borderColor: '#fca5a5', background: '#fef2f2', color: '#991b1b' }} disabled>
+          Failed
+        </button>
+      );
+    }
+
+    return (
+      <button className="btn-resend" onClick={() => handleResend(log.id)}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M22 2L11 13"></path><path d="M22 2L15 22L11 13L2 9L22 2Z"></path>
+        </svg>
+        Resend
+      </button>
+    );
+  };
+
   return (
     <div className="custom-dashboard">
-      
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+
       <div className="hero-banner" style={{ background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' }}>
         <div className="hero-content">
           <h1>System Logs & Queues</h1>
@@ -96,56 +177,61 @@ export default function LogsPage() {
       </div>
 
       <div className="custom-card" style={{ padding: 0 }}>
-        
+
         {/* Toolbar: Search & Sort */}
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #e5e7eb', backgroundColor: '#fafafa', borderTopLeftRadius: '12px', borderTopRightRadius: '12px' }}>
-          <Form 
-            method="get" 
-            style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}
+        <div style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid var(--app-border)',
+          backgroundColor: '#fafafa',
+          borderTopLeftRadius: '12px',
+          borderTopRightRadius: '12px'
+        }}>
+          <Form
+            method="get"
+            style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}
             onChange={(e) => {
-              // Automatically submit on select change (but not on every keystroke of input)
               const target = e.target as HTMLInputElement | HTMLSelectElement;
               if (target.name === 'sort') submit(e.currentTarget);
             }}
           >
             {/* Search Input */}
-            <div style={{ flex: 1, minWidth: '250px', position: 'relative' }}>
-              <input 
-                type="text" 
-                name="q" 
-                defaultValue={q} 
-                placeholder="Search by Order ID, Customer Name, or Discount Code..." 
-                className="custom-input"
-                style={{ paddingLeft: '36px', width: '100%', boxSizing: 'border-box' }}
-              />
-              <svg style={{ position: 'absolute', left: '12px', top: '10px', color: '#9ca3af' }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
+              <svg style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', pointerEvents: 'none' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
+              <input
+                type="text"
+                name="q"
+                defaultValue={q}
+                placeholder="Search by Order ID, Customer, or Code..."
+                className="custom-input"
+                style={{ paddingLeft: '32px', width: '100%', boxSizing: 'border-box' }}
+              />
             </div>
-            
+
             {/* Sort Select */}
-            <select 
-              name="sort" 
-              defaultValue={sort} 
-              className="custom-input" 
-              style={{ width: 'auto', minWidth: '180px' }}
+            <select
+              name="sort"
+              defaultValue={sort}
+              className="custom-input"
+              style={{ width: 'auto', minWidth: '160px' }}
             >
               <option value="createdAt_desc">Newest First</option>
               <option value="createdAt_asc">Oldest First</option>
               <option value="orderId_desc">Order ID (Desc)</option>
               <option value="orderId_asc">Order ID (Asc)</option>
             </select>
-            
+
             {/* Search Button */}
-            <button type="submit" className="btn btn-primary" disabled={isSearching} style={{ minWidth: '100px' }}>
+            <button type="submit" className="btn-primary" disabled={isSearching}>
               {isSearching ? 'Searching...' : 'Search'}
             </button>
-            
-            {/* Clear Button (only show if there's an active search) */}
+
+            {/* Clear Button */}
             {q && (
-              <button 
-                type="button" 
-                className="btn" 
+              <button
+                type="button"
+                className="btn"
                 onClick={() => submit({ q: "", sort, page: "1" }, { method: "get" })}
               >
                 Clear
@@ -154,6 +240,7 @@ export default function LogsPage() {
           </Form>
         </div>
 
+        {/* Table */}
         <div style={{ overflowX: 'auto', opacity: isSearching ? 0.6 : 1, transition: 'opacity 0.2s' }}>
           <table className="custom-table" style={{ margin: 0, width: '100%' }}>
             <thead>
@@ -165,6 +252,7 @@ export default function LogsPage() {
                 <th>Target Code</th>
                 <th>Storewide Code</th>
                 <th>Generated At</th>
+                <th style={{ textAlign: 'center' }}>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -193,16 +281,23 @@ export default function LogsPage() {
                     <td style={{ color: 'var(--app-text-muted)', fontSize: '12px' }}>
                       {log.createdAt.replace('T', ' ').substring(0, 19)}
                     </td>
+                    <td style={{ textAlign: 'center' }}>
+                      {getResendButton(log)}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--app-text-muted)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '64px 32px', color: 'var(--app-text-muted)' }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: '16px' }}>
                       <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <p style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>No results found.</p>
-                    <p style={{ margin: '8px 0 0 0', fontSize: '14px', opacity: 0.8 }}>Try adjusting your search query or clear the filters.</p>
+                    <p style={{ margin: 0, fontSize: '16px', fontWeight: 500 }}>
+                      {q ? 'No results found.' : 'No logs generated yet.'}
+                    </p>
+                    <p style={{ margin: '8px 0 0 0', fontSize: '14px', opacity: 0.8 }}>
+                      {q ? 'Try adjusting your search query or clear the filters.' : 'Logs will appear here once orders are processed.'}
+                    </p>
                   </td>
                 </tr>
               )}
@@ -212,45 +307,45 @@ export default function LogsPage() {
 
         {/* Pagination Toolbar */}
         {totalCount > 0 && (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
-            padding: '16px 24px', 
-            borderTop: '1px solid #e5e7eb',
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '14px 20px',
+            borderTop: '1px solid var(--app-border)',
             backgroundColor: '#fafafa',
             borderBottomLeftRadius: '12px',
             borderBottomRightRadius: '12px',
             flexWrap: 'wrap',
-            gap: '16px'
+            gap: '12px'
           }}>
-            <div style={{ color: 'var(--app-text-muted)', fontSize: '14px' }}>
+            <div style={{ color: 'var(--app-text-muted)', fontSize: '13px' }}>
               Showing <strong>{(currentPage - 1) * 50 + 1}</strong> to <strong>{Math.min(currentPage * 50, totalCount)}</strong> of <strong>{totalCount}</strong> logs
             </div>
-            
+
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button 
+              <button
                 type="button"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage <= 1 || isSearching}
                 className="btn"
-                style={{ opacity: currentPage <= 1 ? 0.5 : 1, padding: '6px 12px' }}
+                style={{ padding: '6px 14px', fontSize: '13px' }}
               >
-                Previous
+                ← Previous
               </button>
-              
-              <span style={{ fontSize: '14px', color: 'var(--app-text-muted)', padding: '0 8px' }}>
+
+              <span style={{ fontSize: '13px', color: 'var(--app-text-muted)', padding: '0 8px' }}>
                 Page {currentPage} of {totalPages}
               </span>
-              
-              <button 
+
+              <button
                 type="button"
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage >= totalPages || isSearching}
                 className="btn"
-                style={{ opacity: currentPage >= totalPages ? 0.5 : 1, padding: '6px 12px' }}
+                style={{ padding: '6px 14px', fontSize: '13px' }}
               >
-                Next
+                Next →
               </button>
             </div>
           </div>
