@@ -22,7 +22,6 @@ async function migrateOdooNames() {
     return;
   }
 
-  // 1. Find all Odoo logs missing an orderName
   const odooLogs = await prisma.log.findMany({
     where: {
       orderName: null,
@@ -33,12 +32,8 @@ async function migrateOdooNames() {
 
   console.log(`[INFO] Found ${odooLogs.length} Odoo log(s) with missing orderName.\n`);
 
-  if (odooLogs.length === 0) {
-    console.log("Nothing to do!");
-    return;
-  }
+  if (odooLogs.length === 0) return;
 
-  // Extract the numeric IDs (e.g. "ODOO-141151" -> 141151)
   const odooIds = odooLogs
     .map(log => {
       const numMatch = log.orderId.match(/\d+/);
@@ -46,45 +41,41 @@ async function migrateOdooNames() {
     })
     .filter(id => id !== null);
 
-  if (odooIds.length === 0) {
-    console.log("No valid numeric IDs extracted from Odoo logs.");
-    return;
-  }
+  if (odooIds.length === 0) return;
 
   console.log(`[INFO] Authenticating with Odoo at ${ODOO_URL}...`);
   
-  // 2. Authenticate with Odoo JSON-RPC
   const authResponse = await fetch(`${ODOO_URL}/web/session/authenticate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       jsonrpc: "2.0",
-      params: {
-        db: ODOO_DB,
-        login: ODOO_USER,
-        password: ODOO_PASS
-      }
+      params: { db: ODOO_DB, login: ODOO_USER, password: ODOO_PASS }
     })
   });
 
   const authData = await authResponse.json();
-  if (authData.error || !authData.result?.session_id) {
+  if (authData.error || !authData.result) {
     console.error("FATAL: Failed to authenticate with Odoo.");
-    console.error(authData.error || "No session ID returned.");
+    console.error(authData.error || "Unknown error");
     return;
   }
 
-  // Extract session cookie
+  // Extract session cookie (Odoo 15+ sends it ONLY in headers, not in JSON)
   const cookies = authResponse.headers.get("set-cookie") || "";
-  let sessionId = authData.result.session_id; // fallback if cookie parsing fails
+  let sessionId = authData.result.session_id || "";
   const sessionMatch = cookies.match(/session_id=([^;]+)/);
   if (sessionMatch) {
     sessionId = sessionMatch[1];
   }
 
+  if (!sessionId) {
+    console.error("FATAL: Authenticated successfully, but no session_id cookie found.");
+    return;
+  }
+
   console.log("[INFO] Successfully authenticated with Odoo.\n");
 
-  // 3. Fetch Order Names in batches of 50 to avoid huge payloads
   let updated = 0, failed = 0, skipped = 0;
   const BATCH_SIZE = 50;
 
@@ -106,9 +97,7 @@ async function migrateOdooNames() {
             model: "sale.order",
             method: "search_read",
             args: [[["id", "in", batchIds]]],
-            kwargs: {
-              fields: ["id", "name", "display_name"]
-            }
+            kwargs: { fields: ["id", "name", "display_name"] }
           }
         })
       });
@@ -123,17 +112,12 @@ async function migrateOdooNames() {
 
       const orders = searchData.result || [];
       
-      // Update database mapping
       for (const order of orders) {
         const orderIdStr = `ODOO-${order.id}`;
         const nameToSave = order.display_name || order.name;
 
-        if (!nameToSave) {
-          skipped++;
-          continue;
-        }
+        if (!nameToSave) { skipped++; continue; }
 
-        // Find corresponding log entry
         const log = odooLogs.find(l => l.orderId === orderIdStr);
         if (log) {
           await prisma.log.update({
@@ -145,7 +129,6 @@ async function migrateOdooNames() {
         }
       }
 
-      // Any IDs in this batch that weren't returned by Odoo were either deleted or invalid
       const returnedIds = orders.map(o => o.id);
       const missingIds = batchIds.filter(id => !returnedIds.includes(id));
       for (const missing of missingIds) {
@@ -153,7 +136,7 @@ async function migrateOdooNames() {
         skipped++;
       }
 
-      await sleep(500); // polite delay between batches
+      await sleep(500);
     } catch (err) {
       console.error("[ERROR] Network failure during batch:", err.message);
       failed += batchIds.length;
