@@ -268,6 +268,7 @@ const worker = new Worker(
           orderName: orderData.name || String(orderId),
           customerName,
           customerPhone: customerPhone || null,
+          loyaltyCardUrl: loyaltyCardUrl || null,
           productCode: code1,
           storewideCode: code2,
           triggerModeUsed: triggerMode,

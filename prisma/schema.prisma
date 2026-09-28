@@ -57,6 +57,7 @@ model Log {
   orderName       String?
   customerName    String?
   customerPhone   String?
+  loyaltyCardUrl  String?  @db.Text
   productCode     String?
   storewideCode   String?
   

@@ -38,10 +38,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
 
     // Rebuild the payload exactly as the original webhook call
+    // Use stored loyaltyCardUrl if available, otherwise try APP_URL env var
+    const loyaltyCardUrl = log.loyaltyCardUrl 
+      || `${process.env.APP_URL || `https://${session.shop}`}/cards/${log.orderId}.pdf`;
+
     const payload = {
       phoneNumber: log.customerPhone,
       customerName: log.customerName || "Customer",
-      loyaltyCardUrl: `${process.env.APP_URL || `https://${session.shop}`}/cards/${log.orderId}.pdf`,
+      loyaltyCardUrl: loyaltyCardUrl,
       productCode: log.productCode,
       storewideCode: log.storewideCode
     };
