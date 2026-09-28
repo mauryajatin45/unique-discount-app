@@ -1,9 +1,3 @@
-/**
- * migrate-order-names.js
- * 
- * SAFE migration script to backfill the `orderName` column for old Log entries.
- */
-
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
@@ -17,23 +11,20 @@ async function migrateOrderNames() {
   console.log("  Safe backfill for old log entries");
   console.log("============================================\n");
 
-  // Get all active sessions
+  // Get all offline sessions
   let sessions = await prisma.session.findMany({
-    where: { accessToken: { not: "" } },
+    where: { 
+      accessToken: { not: "" },
+      isOnline: false // We only want background offline tokens
+    },
   });
 
-  if (!sessions || sessions.length === 0) {
-    console.error("FATAL: No Shopify sessions found in database. Cannot access Shopify API.");
-    return;
-  }
-
-  // Find all Shopify logs that need updating
   const shopifyLogs = await prisma.log.findMany({
     where: {
       orderName: null,
       NOT: { orderId: { startsWith: "ODOO-" } },
     },
-    orderBy: { id: "desc" }, // Process newest first
+    orderBy: { id: "desc" },
   });
 
   console.log(`[INFO] Found ${shopifyLogs.length} Shopify log(s) with missing orderName.\n`);
@@ -45,15 +36,15 @@ async function migrateOrderNames() {
     const progress = `[${i + 1}/${shopifyLogs.length}]`;
 
     try {
-      // Find the specific session for THIS log's shop
+      // Find the first available session for this shop
       const session = sessions.find(s => s.shop === log.shop);
-      if (!session || !session.accessToken) {
-        console.log(`${progress} SKIP  [db_id=${log.id}] orderId=${log.orderId} → No session found for shop ${log.shop}`);
+      if (!session) {
+        console.log(`${progress} SKIP  [db_id=${log.id}] orderId=${log.orderId} → No valid session found for ${log.shop}`);
         skipped++;
         continue;
       }
 
-      if (i > 0) await sleep(1500); // Shopify rate limit
+      if (i > 0) await sleep(1500);
 
       const apiUrl = `https://${log.shop}/admin/api/2024-01/orders/${log.orderId}.json?fields=id,name`;
 
@@ -66,13 +57,15 @@ async function migrateOrderNames() {
       });
 
       if (response.status === 401) {
-        console.log(`${progress} FAIL  [db_id=${log.id}] orderId=${log.orderId} → API returned 401 Unauthorized for ${log.shop}`);
-        failed++;
+        console.log(`${progress} WARN  Token for ${log.shop} is expired/revoked. Removing it from memory and retrying...`);
+        // Remove this bad session from our array so we try the next one
+        sessions = sessions.filter(s => s.id !== session.id);
+        i--; // Retry this same log on the next loop iteration
         continue;
       }
       
       if (response.status === 404) {
-        console.log(`${progress} SKIP  [db_id=${log.id}] orderId=${log.orderId} → Not found (deleted)`);
+        console.log(`${progress} SKIP  [db_id=${log.id}] orderId=${log.orderId} → Not found (deleted in Shopify)`);
         skipped++;
         continue;
       }
@@ -80,7 +73,7 @@ async function migrateOrderNames() {
       if (response.status === 429) {
         console.log(`${progress} WARN  Rate limited. Waiting 10s...`);
         await sleep(10000);
-        i--; // Retry this iteration
+        i--; // Retry
         continue;
       }
 
