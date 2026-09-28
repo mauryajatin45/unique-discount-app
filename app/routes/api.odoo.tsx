@@ -58,8 +58,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log(`[Odoo Webhook Raw Payload] `, JSON.stringify(body));
     
     // We map this into a Shopify-like orderData object for the queue
+    const odooOrderName = body.name || body.display_name || body.reference || body.order_id || String(orderId);
     const orderData = {
       id: orderId,
+      name: odooOrderName,
       customer: {
         first_name: customerName,
         phone: customerPhone

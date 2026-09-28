@@ -80,7 +80,7 @@ export default function LogsPage() {
                     <td><span className="badge badge-success" style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}>{log.productCode}</span></td>
                     <td><span className="badge badge-success" style={{ fontFamily: 'monospace', letterSpacing: '0.5px' }}>{log.storewideCode}</span></td>
                     <td style={{ color: 'var(--app-text-muted)', fontSize: '12px' }}>
-                      {new Date(log.createdAt).toLocaleString()}
+                      {log.createdAt.replace('T', ' ').substring(0, 19)}
                     </td>
                   </tr>
                 ))
