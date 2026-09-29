@@ -11,10 +11,43 @@ async function migratePhoneNumbers() {
   console.log("  Backfill customerPhone for old log entries");
   console.log("============================================\n");
 
-  // Get all offline sessions (valid API tokens)
-  let sessions = await prisma.session.findMany({
-    where: { accessToken: { not: "" }, isOnline: false },
+  // Get ALL sessions — offline preferred, but fall back to non-expired online sessions
+  const allSessions = await prisma.session.findMany({
+    where: { accessToken: { not: "" } },
   });
+
+  // Group by shop: prefer offline sessions, fall back to most-recently-expiring online ones
+  const sessionsByShop = {};
+  for (const s of allSessions) {
+    if (!sessionsByShop[s.shop]) sessionsByShop[s.shop] = [];
+    sessionsByShop[s.shop].push(s);
+  }
+
+  // For each shop, sort: offline first, then online by expiresAt desc (most recent first)
+  const now = new Date();
+  for (const shop of Object.keys(sessionsByShop)) {
+    sessionsByShop[shop].sort((a, b) => {
+      if (!a.isOnline && b.isOnline) return -1;
+      if (a.isOnline && !b.isOnline) return 1;
+      // both same type — sort by expiresAt desc (nulls last)
+      if (!a.expiresAt && !b.expiresAt) return 0;
+      if (!a.expiresAt) return -1;
+      if (!b.expiresAt) return 1;
+      return new Date(b.expiresAt) - new Date(a.expiresAt);
+    });
+    // Remove expired online sessions upfront
+    sessionsByShop[shop] = sessionsByShop[shop].filter(s => {
+      if (s.isOnline && s.expiresAt && new Date(s.expiresAt) < now) return false;
+      return true;
+    });
+  }
+
+  const getSession = (shop) => (sessionsByShop[shop] || [])[0] || null;
+  const removeSession = (shop, id) => {
+    if (sessionsByShop[shop]) {
+      sessionsByShop[shop] = sessionsByShop[shop].filter(s => s.id !== id);
+    }
+  };
 
   // Find all Shopify logs missing customerPhone
   const shopifyLogs = await prisma.log.findMany({
@@ -34,14 +67,14 @@ async function migratePhoneNumbers() {
     const progress = `[${i + 1}/${shopifyLogs.length}]`;
 
     try {
-      const session = sessions.find(s => s.shop === log.shop);
-      if (!session || !session.accessToken) {
-        console.log(`${progress} SKIP  [db_id=${log.id}] → No session for ${log.shop}`);
+      const session = getSession(log.shop);
+      if (!session) {
+        console.log(`${progress} SKIP  [db_id=${log.id}] → No valid session for ${log.shop}`);
         skipped++;
         continue;
       }
 
-      if (i > 0) await sleep(1500);
+      if (i > 0) await sleep(300);
 
       const apiUrl = `https://${log.shop}/admin/api/2024-01/orders/${log.orderId}.json?fields=id,customer,phone,billing_address,shipping_address`;
 
@@ -54,14 +87,14 @@ async function migratePhoneNumbers() {
       });
 
       if (response.status === 401) {
-        console.log(`${progress} WARN  Token expired for ${log.shop}. Removing from memory...`);
-        sessions = sessions.filter(s => s.id !== session.id);
-        i--;
+        console.log(`${progress} WARN  Token invalid for ${log.shop} (session: ${session.id.substring(0, 20)}...). Trying next session...`);
+        removeSession(log.shop, session.id);
+        i--; // retry same log with next session
         continue;
       }
 
       if (response.status === 404) {
-        console.log(`${progress} SKIP  [db_id=${log.id}] orderId=${log.orderId} → Order not found`);
+        console.log(`${progress} SKIP  [db_id=${log.id}] orderId=${log.orderId} → Order not found (deleted)`);
         skipped++;
         continue;
       }
@@ -88,8 +121,12 @@ async function migratePhoneNumbers() {
         continue;
       }
 
-      // Extract phone from multiple possible locations (same logic as queue.server.ts)
-      const phone = order.customer?.phone || order.phone || order.billing_address?.phone || order.shipping_address?.phone || null;
+      const phone =
+        order.customer?.phone ||
+        order.phone ||
+        order.billing_address?.phone ||
+        order.shipping_address?.phone ||
+        null;
 
       if (phone) {
         await prisma.log.update({
@@ -99,7 +136,7 @@ async function migratePhoneNumbers() {
         console.log(`${progress} OK    [db_id=${log.id}] ${log.orderName || log.orderId} → ${phone}`);
         updated++;
       } else {
-        console.log(`${progress} SKIP  [db_id=${log.id}] ${log.orderName || log.orderId} → No phone on order`);
+        console.log(`${progress} SKIP  [db_id=${log.id}] ${log.orderName || log.orderId} → No phone on Shopify order`);
         skipped++;
       }
     } catch (err) {
