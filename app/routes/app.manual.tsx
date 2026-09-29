@@ -39,6 +39,7 @@ export default function ManualProcessPage() {
   const { isActive, triggerMode, hasTriggerProduct, hasTargetProduct } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<Result>();
   const [input, setInput] = useState("");
+  const [platform, setPlatform] = useState<"shopify" | "odoo">("shopify");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isLoading = fetcher.state !== "idle";
@@ -51,7 +52,7 @@ export default function ManualProcessPage() {
       return;
     }
     fetcher.submit(
-      { rawInput: val, force },
+      { rawInput: val, force, platform },
       { method: "POST", action: "/api/manual-process", encType: "application/json" }
     );
   };
@@ -86,13 +87,17 @@ export default function ManualProcessPage() {
         .order-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
         .order-tag { background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.1); border-radius: 20px; padding: 3px 10px; font-size: 12px; color: #374151; }
         .hint-box { background: rgba(255,255,255,0.6); border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 13px; color: #374151; }
+        
+        .platform-toggle { display: flex; gap: 8px; margin-bottom: 16px; }
+        .platform-btn { padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; cursor: pointer; border: 1px solid #d1d5db; background: #f9fafb; color: #4b5563; transition: all 0.2s; }
+        .platform-btn.active { background: #ede9fe; color: #5b21b6; border-color: #8b5cf6; }
       `}</style>
 
       {/* Hero */}
       <div className="hero-banner" style={{ background: "linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)" }}>
         <div className="hero-content">
           <h1>Manual Order Processing</h1>
-          <p>Generate discount codes for orders that were missed by the automatic system.</p>
+          <p>Generate discount codes for Shopify or Odoo orders missed by the automated system.</p>
         </div>
         <div style={{ background: "rgba(255,255,255,0.2)", width: 56, height: 56, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,8 +121,23 @@ export default function ManualProcessPage() {
       <div className="custom-card">
         <h2 style={{ margin: "0 0 6px 0", fontSize: 18, fontWeight: 700 }}>Enter Order</h2>
         <p style={{ margin: "0 0 20px 0", color: "var(--app-text-muted)", fontSize: 14 }}>
-          Enter the Shopify order number (e.g. <code>#92509</code>) or the full numeric order ID.
+          Select the platform and enter the order number or ID.
         </p>
+        
+        <div className="platform-toggle">
+          <button 
+            className={`platform-btn ${platform === "shopify" ? "active" : ""}`} 
+            onClick={() => { setPlatform("shopify"); setInput(""); inputRef.current?.focus(); }}
+          >
+            🛍️ Shopify
+          </button>
+          <button 
+            className={`platform-btn ${platform === "odoo" ? "active" : ""}`} 
+            onClick={() => { setPlatform("odoo"); setInput(""); inputRef.current?.focus(); }}
+          >
+            🏢 Odoo
+          </button>
+        </div>
 
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-start" }}>
           <div style={{ flex: 1, minWidth: 220 }}>
@@ -125,7 +145,7 @@ export default function ManualProcessPage() {
               ref={inputRef}
               type="text"
               className="custom-input"
-              placeholder="#92509 or 7215940796672"
+              placeholder={platform === "shopify" ? "#92509 or 7215940796672" : "SK17050 or 141623"}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
