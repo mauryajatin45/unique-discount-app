@@ -19,7 +19,7 @@ export const orderQueue = new Queue("orderQueue", {
 const worker = new Worker(
   "orderQueue",
   async (job: Job) => {
-    const { shop, orderId, orderData, isOdooOrder } = job.data;
+    const { shop, orderId, orderData, isOdooOrder, forceProcess } = job.data;
     console.log(`Processing order ${orderId} for shop ${shop}`);
 
     try {
@@ -54,11 +54,11 @@ const worker = new Worker(
         return;
       }
 
-      // Check trigger condition
+      // Check trigger condition (skipped when manually force-processed)
       const triggerMode = settings.triggerMode || "ALL_PRODUCTS";
       const lineItems = orderData.line_items || [];
 
-      if (triggerMode === "SPECIFIC_PRODUCT") {
+      if (!forceProcess && triggerMode === "SPECIFIC_PRODUCT") {
         const triggerProductIdStr = settings.triggerProductId;
         if (!triggerProductIdStr) {
           console.log(`Specific product trigger selected but no trigger product configured for ${shop}. Skipping.`);

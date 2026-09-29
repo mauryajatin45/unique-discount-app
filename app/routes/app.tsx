@@ -85,6 +85,7 @@ export default function App() {
           <NavMenu>
             {appUser.canViewDashboard && <Link to="/app" rel="home">Dashboard</Link>}
             {appUser.canViewLogs && <Link to="/app/logs">Logs & Queues</Link>}
+            {appUser.canViewLogs && <Link to="/app/manual">Manual Processing</Link>}
             {appUser.canViewSettings && <Link to="/app/settings">Settings</Link>}
           </NavMenu>
           <Outlet />
